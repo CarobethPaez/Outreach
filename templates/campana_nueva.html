@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Nueva campaña{% endblock %}
+{% block page_title %}Nueva campaña{% endblock %}
+{% block nav_nueva %}active{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <h1>Nueva campaña</h1>
+  <a href="{% url 'dashboard' %}" class="btn btn-secondary">← Volver</a>
+</div>
+
+<div style="max-width:540px;">
+  <div class="table-wrap" style="padding:28px;">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Nombre de la campaña</label>
+        <input type="text" name="nombre" placeholder="ej. Restaurantes Santiago - Mayo 2026" required>
+      </div>
+      <div class="form-group">
+        <label>Producto</label>
+        <select name="producto" required>
+          <option value="">— Seleccionar —</option>
+          {% for val, label in productos %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tono del email</label>
+        <select name="tono">
+          {% for val, label in tonos %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Número de follow-ups</label>
+        <input type="number" name="num_followups" value="2" min="0" max="5">
+      </div>
+      <div class="form-group">
+        <label>Notas internas (opcional)</label>
+        <textarea name="notas" placeholder="Segmento, criterios de selección, observaciones…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary w-full">Crear campaña</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

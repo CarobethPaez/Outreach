@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}CRM{% endblock %}
+{% block page_title %}CRM — Interesados{% endblock %}
+{% block nav_crm %}active{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <h1>CRM</h1>
+</div>
+
+<!-- Stats -->
+<div class="cards-grid" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="label">Total interesados</div>
+    <div class="value green">{{ total_interesados }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Demos agendadas</div>
+    <div class="value accent">{{ demos_agendadas }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Clientes cerrados</div>
+    <div class="value green">{{ clientes_cerrados }}</div>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="flex gap-2 flex-wrap" style="margin-bottom:20px;">
+  <form method="get" class="flex gap-2 flex-wrap items-center">
+    <select name="producto" onchange="this.form.submit()" style="width:auto; padding:7px 12px;">
+      <option value="">Todos los productos</option>
+      {% for val, label in productos %}
+      <option value="{{ val }}" {% if filtro_producto == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="accion" onchange="this.form.submit()" style="width:auto; padding:7px 12px;">
+      <option value="">Todas las acciones</option>
+      {% for val, label in acciones %}
+      <option value="{{ val }}" {% if filtro_accion == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% if filtro_producto or filtro_accion %}
+    <a href="{% url 'crm' %}" class="btn btn-secondary btn-sm">✕ Limpiar</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="table-wrap">
+  <div class="table-header">
+    <h2>Contactos <span class="text-muted text-sm">({{ entradas.count }})</span></h2>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Empresa</th>
+        <th>Producto</th>
+        <th>Próxima acción</th>
+        <th>Notas</th>
+        <th>Respondió</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entradas %}
+      <tr id="row-{{ e.pk }}">
+        <td>
+          <strong>{{ e.prospecto.nombre_completo }}</strong>
+          <div class="text-muted text-sm">{{ e.prospecto.email }}</div>
+        </td>
+        <td>{{ e.prospecto.empresa }}</td>
+        <td>
+          <span class="badge badge-{{ e.prospecto.campana.producto }}">
+            {{ e.prospecto.campana.get_producto_display }}
+          </span>
+        </td>
+        <td>
+          <select id="accion-{{ e.pk }}" style="width:auto; padding:5px 10px; font-size:13px;">
+            {% for val, label in acciones %}
+            <option value="{{ val }}" {% if e.proxima_accion == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <textarea id="notas-{{ e.pk }}" style="min-height:50px; font-size:12.5px; padding:6px 10px;">{{ e.notas }}</textarea>
+        </td>
+        <td class="text-muted text-sm">{{ e.fecha_respuesta|date:"d/m/Y" }}</td>
+        <td>
+          <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="entrada_id" value="{{ e.pk }}">
+            <input type="hidden" name="proxima_accion" id="hidden-accion-{{ e.pk }}">
+            <input type="hidden" name="notas" id="hidden-notas-{{ e.pk }}">
+            <button type="button" class="btn btn-primary btn-sm"
+              onclick="guardarCRM({{ e.pk }}, this.closest('form'))">
+              Guardar
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-muted" style="text-align:center; padding:28px;">
+          Sin interesados todavía. Sincroniza respuestas desde las campañas.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function guardarCRM(id, form) {
+    document.getElementById('hidden-accion-' + id).value =
+      document.getElementById('accion-' + id).value;
+    document.getElementById('hidden-notas-' + id).value =
+      document.getElementById('notas-' + id).value;
+    form.submit();
+  }
+</script>
+{% endblock %}

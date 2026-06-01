@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Emails — {{ campana.nombre }}{% endblock %}
+{% block page_title %}Emails generados{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <div>
+    <h1>Emails — {{ campana.nombre }}</h1>
+    <div class="flex gap-2 items-center mt-1">
+      <span class="badge badge-{{ campana.producto }}">{{ campana.get_producto_display }}</span>
+    </div>
+  </div>
+  <a href="{% url 'campana_detalle' campana.pk %}" class="btn btn-secondary">← Volver</a>
+</div>
+
+<!-- Filtros -->
+<div class="flex gap-2 flex-wrap" style="margin-bottom:20px;">
+  <a href="?filtro=" class="btn {% if not filtro %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Todos</a>
+  <a href="?filtro=pendiente" class="btn {% if filtro == 'pendiente' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Pendiente</a>
+  <a href="?filtro=aprobado" class="btn {% if filtro == 'aprobado' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Aprobado</a>
+  <a href="?filtro=enviado" class="btn {% if filtro == 'enviado' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Enviado</a>
+</div>
+
+<!-- Acciones masivas -->
+<div class="flex gap-2 flex-wrap" style="margin-bottom:20px;">
+  <button class="btn btn-green btn-sm" onclick="aprobarTodos()">✓ Aprobar todos</button>
+  <button class="btn btn-primary btn-sm" onclick="enviarAprobados()">🚀 Enviar aprobados</button>
+</div>
+
+<div id="op-log" style="display:none; margin-bottom:16px;">
+  <div class="table-wrap" style="padding:14px 18px;">
+    <div id="op-log-text" class="text-sm" style="font-family:monospace;"></div>
+  </div>
+</div>
+
+<div style="display:flex; flex-direction:column; gap:14px;">
+  {% for eg in emails %}
+  <div class="table-wrap" style="padding:0;" data-email-id="{{ eg.pk }}">
+    <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <strong>{{ eg.prospecto.nombre_completo }}</strong>
+        <span class="text-muted text-sm"> — {{ eg.prospecto.empresa }}</span>
+        <span class="badge btn-sm" style="margin-left:8px;
+          {% if eg.enviado_a_instantly %}background:rgba(124,108,252,.15);color:#7c6cfc;
+          {% elif eg.aprobado %}background:rgba(234,179,8,.15);color:#eab308;
+          {% else %}background:rgba(136,136,136,.15);color:#888;{% endif %}">
+          {% if eg.enviado_a_instantly %}Enviado{% elif eg.aprobado %}Aprobado{% else %}Pendiente{% endif %}
+        </span>
+      </div>
+      <div class="flex gap-2">
+        {% if not eg.aprobado and not eg.enviado_a_instantly %}
+        <button class="btn btn-green btn-sm" onclick="aprobarUno({{ eg.pk }}, this)">✓ Aprobar</button>
+        {% endif %}
+        <button class="btn btn-secondary btn-sm" onclick="togglePreview({{ eg.pk }})">Ver</button>
+      </div>
+    </div>
+    <div id="preview-{{ eg.pk }}" style="display:none; padding:18px 20px;">
+      <div class="form-group">
+        <label>Asunto</label>
+        <input type="text" id="asunto-{{ eg.pk }}" value="{{ eg.asunto }}">
+      </div>
+      <div class="form-group">
+        <label>Cuerpo</label>
+        <textarea id="cuerpo-{{ eg.pk }}" style="min-height:140px;">{{ eg.cuerpo }}</textarea>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-primary btn-sm" onclick="guardarUno({{ eg.pk }})">💾 Guardar</button>
+        <span class="text-muted text-sm items-center flex">{{ eg.tokens_usados }} tokens</span>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="table-wrap" style="padding:32px; text-align:center;" class="text-muted">
+    No hay emails para este filtro.
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const campanaId = {{ campana.pk }};
+
+  function log(msg) {
+    const el = document.getElementById('op-log');
+    el.style.display = 'block';
+    document.getElementById('op-log-text').innerHTML += msg + '<br>';
+  }
+
+  function togglePreview(id) {
+    const el = document.getElementById('preview-' + id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+
+  async function aprobarUno(id, btn) {
+    const r = await fetch(`/emails/${id}/aprobar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    if (r.ok) { btn.textContent = '✓ Aprobado'; btn.disabled = true; }
+  }
+
+  async function guardarUno(id) {
+    const r = await fetch(`/emails/${id}/editar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        asunto: document.getElementById('asunto-' + id).value,
+        cuerpo: document.getElementById('cuerpo-' + id).value,
+      })
+    });
+    if (r.ok) log(`✅ Email ${id} guardado.`);
+  }
+
+  async function aprobarTodos() {
+    const btns = document.querySelectorAll('[onclick^="aprobarUno"]');
+    log(`⏳ Aprobando ${btns.length} emails…`);
+    for (const btn of btns) btn.click();
+    log('✅ Listo.');
+  }
+
+  async function enviarAprobados() {
+    log('⏳ Enviando aprobados a Instantly…');
+    const r = await fetch(`/campanas/${campanaId}/enviar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    const d = await r.json();
+    log(`✅ Enviados: ${d.enviados} | Errores: ${d.errores.length}`);
+    setTimeout(() => location.reload(), 1200);
+  }
+
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+</script>
+{% endblock %}

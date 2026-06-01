@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <h1>Dashboard</h1>
+  <a href="{% url 'campana_nueva' %}" class="btn btn-primary">+ Nueva campaña</a>
+</div>
+
+<div class="cards-grid">
+  <div class="card">
+    <div class="label">Campañas</div>
+    <div class="value">{{ total_campanas }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Emails enviados</div>
+    <div class="value accent">{{ total_enviados }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Respuestas</div>
+    <div class="value">{{ total_respuestas }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Interesados</div>
+    <div class="value green">{{ total_interesados }}</div>
+  </div>
+  <div class="card">
+    <div class="label">MRR potencial StockWise</div>
+    <div class="value green" style="font-size:18px;">
+      ${{ mrr_potencial_stockwise|floatformat:0 }}
+    </div>
+    <div class="text-muted text-sm mt-1">CLP / mes</div>
+  </div>
+  <div class="card">
+    <div class="label">MRR potencial StockMenu</div>
+    <div class="value accent" style="font-size:18px;">
+      ${{ mrr_potencial_stockmenu|floatformat:0 }}
+    </div>
+    <div class="text-muted text-sm mt-1">CLP / mes</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <div class="table-header">
+    <h2>Campañas</h2>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Producto</th>
+        <th>Estado</th>
+        <th>Prospectos</th>
+        <th>Enviados</th>
+        <th>Respuestas</th>
+        <th>% Resp.</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in campanas %}
+      <tr>
+        <td><strong>{{ c.nombre }}</strong></td>
+        <td><span class="badge badge-{{ c.producto }}">{{ c.get_producto_display }}</span></td>
+        <td><span class="badge badge-{{ c.estado }}">{{ c.get_estado_display }}</span></td>
+        <td>{{ c.total_prospectos }}</td>
+        <td>{{ c.emails_enviados }}</td>
+        <td>{{ c.respuestas }}</td>
+        <td>{{ c.tasa_respuesta }}%</td>
+        <td>
+          <a href="{% url 'campana_detalle' c.pk %}" class="btn btn-secondary btn-sm">Ver</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-muted" style="text-align:center; padding:28px;">
+          No hay campañas aún. <a href="{% url 'campana_nueva' %}" style="color:var(--accent);">Crea la primera</a>.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

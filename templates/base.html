@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Outreach{% endblock %} — StockWise</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --bg2: #1a1a1a;
+      --bg3: #242424;
+      --border: #2e2e2e;
+      --text: #e8e8e8;
+      --text2: #888;
+      --accent: #7c6cfc;
+      --accent2: #5b4de0;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --blue: #3b82f6;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-logo .brand {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.3px;
+    }
+
+    .sidebar-logo .sub {
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 2px;
+    }
+
+    .sidebar nav {
+      padding: 12px 8px;
+      flex: 1;
+    }
+
+    .sidebar nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 7px;
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 13.5px;
+      transition: background .15s, color .15s;
+    }
+
+    .sidebar nav a:hover,
+    .sidebar nav a.active {
+      background: var(--bg3);
+      color: var(--text);
+    }
+
+    .sidebar nav a.active {
+      color: var(--accent);
+    }
+
+    .sidebar nav .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+    /* Topbar */
+    .topbar {
+      position: fixed;
+      top: 0; left: 220px; right: 0;
+      height: 52px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 99;
+    }
+
+    .topbar .page-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .topbar .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .topbar .user-info a {
+      color: var(--text2);
+      text-decoration: none;
+    }
+
+    .topbar .user-info a:hover { color: var(--text); }
+
+    /* Main */
+    .main {
+      margin-left: 220px;
+      margin-top: 52px;
+      padding: 28px 32px;
+      flex: 1;
+      min-height: calc(100vh - 52px);
+    }
+
+    /* Cards */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+
+    .card .label {
+      font-size: 12px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .card .value {
+      font-size: 26px;
+      font-weight: 700;
+      margin-top: 6px;
+      color: var(--text);
+    }
+
+    .card .value.accent { color: var(--accent); }
+    .card .value.green { color: var(--green); }
+
+    /* Table */
+    .table-wrap {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .table-header h2 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      padding: 11px 16px;
+      text-align: left;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13.5px;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .badge-borrador { background: rgba(136,136,136,.15); color: #888; }
+    .badge-activa { background: rgba(34,197,94,.15); color: var(--green); }
+    .badge-pausada { background: rgba(234,179,8,.15); color: var(--yellow); }
+    .badge-cerrada { background: rgba(239,68,68,.15); color: var(--red); }
+    .badge-stockwise { background: rgba(124,108,252,.15); color: var(--accent); }
+    .badge-stockmenu { background: rgba(59,130,246,.15); color: var(--blue); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+    .btn-green { background: rgba(34,197,94,.15); color: var(--green); border: 1px solid rgba(34,197,94,.25); }
+    .btn-sm { padding: 5px 11px; font-size: 12.5px; }
+    .btn-danger { background: rgba(239,68,68,.15); color: var(--red); border: 1px solid rgba(239,68,68,.25); }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 12.5px;
+      color: var(--text2);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      padding: 9px 13px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea { resize: vertical; min-height: 90px; }
+
+    select option { background: var(--bg3); }
+
+    /* Messages */
+    .messages { margin-bottom: 20px; }
+    .msg {
+      padding: 11px 16px;
+      border-radius: 7px;
+      margin-bottom: 8px;
+      font-size: 13.5px;
+    }
+    .msg-success { background: rgba(34,197,94,.1); color: var(--green); border: 1px solid rgba(34,197,94,.2); }
+    .msg-error { background: rgba(239,68,68,.1); color: var(--red); border: 1px solid rgba(239,68,68,.2); }
+    .msg-info { background: rgba(124,108,252,.1); color: var(--accent); border: 1px solid rgba(124,108,252,.2); }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      width: 620px;
+      max-width: 95vw;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 18px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    /* Misc */
+    .page-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .page-heading h1 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .text-muted { color: var(--text2); }
+    .text-sm { font-size: 12.5px; }
+    .mt-1 { margin-top: 6px; }
+    .mt-2 { margin-top: 12px; }
+    .mt-3 { margin-top: 20px; }
+    .flex { display: flex; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .items-center { align-items: center; }
+    .flex-wrap { flex-wrap: wrap; }
+    .w-full { width: 100%; }
+    pre { white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">Outreach</div>
+    <div class="sub">StockWise · StockMenu</div>
+  </div>
+  <nav>
+    <a href="{% url 'dashboard' %}" class="{% block nav_dashboard %}{% endblock %}">
+      <span class="nav-icon">📊</span> Dashboard
+    </a>
+    <a href="{% url 'campana_nueva' %}" class="{% block nav_nueva %}{% endblock %}">
+      <span class="nav-icon">✉️</span> Nueva campaña
+    </a>
+    <a href="{% url 'crm' %}" class="{% block nav_crm %}{% endblock %}">
+      <span class="nav-icon">🎯</span> CRM
+    </a>
+  </nav>
+</aside>
+
+<div style="flex:1; display:flex; flex-direction:column;">
+  <header class="topbar">
+    <span class="page-title">{% block page_title %}Outreach{% endblock %}</span>
+    <div class="user-info">
+      <span>{{ request.user.username }}</span>
+      <a href="{% url 'logout' %}">Cerrar sesión</a>
+    </div>
+  </header>
+
+  <main class="main">
+    {% if messages %}
+    <div class="messages">
+      {% for msg in messages %}
+      <div class="msg msg-{{ msg.tags }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

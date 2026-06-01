@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Respuestas — {{ campana.nombre }}{% endblock %}
+{% block page_title %}Respuestas{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <div>
+    <h1>Respuestas — {{ campana.nombre }}</h1>
+    <span class="badge badge-{{ campana.producto }}">{{ campana.get_producto_display }}</span>
+  </div>
+  <a href="{% url 'campana_detalle' campana.pk %}" class="btn btn-secondary">← Volver</a>
+</div>
+
+<div class="table-wrap">
+  <div class="table-header">
+    <h2>Respondieron ({{ respondieron.count }})</h2>
+    <button class="btn btn-secondary btn-sm" onclick="sincronizar()">🔄 Sincronizar</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Empresa</th>
+        <th>Email</th>
+        <th>Estado</th>
+        <th>CRM</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in respondieron %}
+      <tr>
+        <td>{{ p.nombre_completo }}</td>
+        <td>{{ p.empresa }}</td>
+        <td class="text-muted">{{ p.email }}</td>
+        <td>
+          <span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e;">
+            {{ p.get_estado_display }}
+          </span>
+        </td>
+        <td>
+          {% if p.prospectocrm %}
+          <a href="{% url 'crm' %}" class="btn btn-secondary btn-sm">Ver CRM</a>
+          {% else %}
+          <span class="text-muted text-sm">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" class="text-muted" style="text-align:center; padding:28px;">
+          Sin respuestas todavía. Sincroniza con Instantly.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="op-log" style="display:none; margin-top:16px;">
+  <div class="table-wrap" style="padding:14px 18px;">
+    <div id="op-log-text" class="text-sm" style="font-family:monospace;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const campanaId = {{ campana.pk }};
+
+  async function sincronizar() {
+    document.getElementById('op-log').style.display = 'block';
+    document.getElementById('op-log-text').innerHTML = '⏳ Sincronizando…<br>';
+    const r = await fetch(`/campanas/${campanaId}/sincronizar/`, {
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    const d = await r.json();
+    document.getElementById('op-log-text').innerHTML += `✅ Procesadas: ${d.procesados}<br>`;
+    setTimeout(() => location.reload(), 1200);
+  }
+
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+</script>
+{% endblock %}

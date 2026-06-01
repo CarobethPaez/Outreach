@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}{{ campana.nombre }}{% endblock %}
+{% block page_title %}{{ campana.nombre }}{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <div>
+    <h1>{{ campana.nombre }}</h1>
+    <div class="flex gap-2 items-center mt-1">
+      <span class="badge badge-{{ campana.producto }}">{{ campana.get_producto_display }}</span>
+      <span class="badge badge-{{ campana.estado }}">{{ campana.get_estado_display }}</span>
+      <span class="text-muted text-sm">Tono: {{ campana.get_tono_display }}</span>
+    </div>
+  </div>
+  <a href="{% url 'dashboard' %}" class="btn btn-secondary">← Dashboard</a>
+</div>
+
+<!-- Stats -->
+<div class="cards-grid" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="label">Prospectos</div>
+    <div class="value">{{ campana.total_prospectos }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Emails generados</div>
+    <div class="value">{{ campana.emails_generados }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Enviados</div>
+    <div class="value accent">{{ campana.emails_enviados }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Respuestas</div>
+    <div class="value">{{ campana.respuestas }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Interesados</div>
+    <div class="value green">{{ campana.interesados }}</div>
+  </div>
+</div>
+
+<!-- Acciones -->
+<div class="flex gap-2 flex-wrap" style="margin-bottom:24px;">
+  <!-- Importar CSV -->
+  <button class="btn btn-secondary" onclick="document.getElementById('csv-input').click()">
+    📁 Importar CSV (Apollo)
+  </button>
+  <input type="file" id="csv-input" accept=".csv" style="display:none"
+    onchange="importarCSV(this)">
+
+  <!-- Generar emails -->
+  <button class="btn btn-primary" id="btn-generar" onclick="generarEmails()">
+    ✨ Generar emails con IA
+  </button>
+
+  <!-- Enviar a Instantly -->
+  {% if emails_aprobados_no_enviados > 0 %}
+  <button class="btn btn-green" onclick="enviarInstantly()">
+    🚀 Enviar a Instantly ({{ emails_aprobados_no_enviados }})
+  </button>
+  {% endif %}
+
+  <!-- Sincronizar respuestas -->
+  <button class="btn btn-secondary" onclick="sincronizar()">
+    🔄 Sincronizar respuestas
+  </button>
+</div>
+
+<!-- Log de operaciones -->
+<div id="op-log" style="display:none; margin-bottom:20px;">
+  <div class="table-wrap" style="padding:16px 20px;">
+    <div id="op-log-text" class="text-sm" style="font-family:monospace;"></div>
+  </div>
+</div>
+
+<!-- Tabla prospectos -->
+<div class="table-wrap">
+  <div class="table-header">
+    <h2>Prospectos <span class="text-muted text-sm">({{ prospectos.count }})</span></h2>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Empresa</th>
+        <th>Cargo</th>
+        <th>Email</th>
+        <th>Estado</th>
+        <th>Email IA</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in prospectos %}
+      <tr>
+        <td>{{ p.nombre_completo }}</td>
+        <td>{{ p.empresa }}</td>
+        <td class="text-muted">{{ p.cargo }}</td>
+        <td class="text-muted">{{ p.email }}</td>
+        <td>
+          <span class="badge" style="
+            {% if p.estado == 'pendiente' %}background:rgba(136,136,136,.15);color:#888;
+            {% elif p.estado == 'email_generado' %}background:rgba(59,130,246,.15);color:#3b82f6;
+            {% elif p.estado == 'aprobado' %}background:rgba(234,179,8,.15);color:#eab308;
+            {% elif p.estado == 'enviado' %}background:rgba(124,108,252,.15);color:#7c6cfc;
+            {% elif p.estado == 'respondio' %}background:rgba(34,197,94,.15);color:#22c55e;
+            {% elif p.estado == 'interesado' %}background:rgba(34,197,94,.25);color:#16a34a;
+            {% else %}background:rgba(239,68,68,.15);color:#ef4444;{% endif %}
+          ">{{ p.get_estado_display }}</span>
+        </td>
+        <td>
+          {% if p.email_generado %}
+          <button class="btn btn-secondary btn-sm"
+            onclick="abrirModal({{ p.email_generado.pk }}, '{{ p.nombre_completo|escapejs }}', '{{ p.email_generado.asunto|escapejs }}', '{{ p.email_generado.cuerpo|escapejs }}', {{ p.email_generado.aprobado|yesno:'true,false' }})">
+            Ver email
+          </button>
+          {% else %}
+          <span class="text-muted text-sm">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="text-muted" style="text-align:center; padding:28px;">
+          Sin prospectos. Importa un CSV de Apollo.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal email -->
+<div class="modal-overlay" id="modal-email">
+  <div class="modal">
+    <h3 id="modal-nombre"></h3>
+    <div class="form-group">
+      <label>Asunto</label>
+      <input type="text" id="modal-asunto">
+    </div>
+    <div class="form-group">
+      <label>Cuerpo</label>
+      <textarea id="modal-cuerpo" style="min-height:160px;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-green" id="btn-aprobar" onclick="aprobarEmail()">✓ Aprobar</button>
+      <button class="btn btn-primary" onclick="guardarEmail()">💾 Guardar cambios</button>
+      <button class="btn btn-secondary" onclick="cerrarModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let emailActualId = null;
+  const campanaId = {{ campana.pk }};
+
+  function log(msg) {
+    const el = document.getElementById('op-log');
+    const txt = document.getElementById('op-log-text');
+    el.style.display = 'block';
+    txt.innerHTML += msg + '<br>';
+  }
+
+  function abrirModal(id, nombre, asunto, cuerpo, aprobado) {
+    emailActualId = id;
+    document.getElementById('modal-nombre').textContent = nombre;
+    document.getElementById('modal-asunto').value = asunto;
+    document.getElementById('modal-cuerpo').value = cuerpo;
+    document.getElementById('btn-aprobar').style.display = aprobado ? 'none' : '';
+    document.getElementById('modal-email').classList.add('open');
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-email').classList.remove('open');
+    emailActualId = null;
+  }
+
+  async function aprobarEmail() {
+    const r = await fetch(`/emails/${emailActualId}/aprobar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    if (r.ok) { cerrarModal(); location.reload(); }
+  }
+
+  async function guardarEmail() {
+    const r = await fetch(`/emails/${emailActualId}/editar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        asunto: document.getElementById('modal-asunto').value,
+        cuerpo: document.getElementById('modal-cuerpo').value,
+      })
+    });
+    if (r.ok) { cerrarModal(); location.reload(); }
+  }
+
+  async function importarCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('archivo', file);
+    log('⏳ Importando CSV…');
+    const r = await fetch(`/campanas/${campanaId}/importar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')},
+      body: fd
+    });
+    const d = await r.json();
+    log(`✅ Creados: ${d.creados} | Actualizados: ${d.actualizados} | Errores: ${d.errores.length}`);
+    if (d.errores.length) d.errores.forEach(e => log(`  ⚠ ${e}`));
+    setTimeout(() => location.reload(), 1200);
+  }
+
+  async function generarEmails() {
+    document.getElementById('btn-generar').textContent = '⏳ Generando…';
+    document.getElementById('btn-generar').disabled = true;
+    log('⏳ Generando emails con Claude…');
+    const r = await fetch(`/campanas/${campanaId}/generar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    const d = await r.json();
+    log(`✅ Generados: ${d.generados} | Errores: ${d.errores.length}`);
+    if (d.errores.length) d.errores.forEach(e => log(`  ⚠ ${e}`));
+    setTimeout(() => location.reload(), 1200);
+  }
+
+  async function enviarInstantly() {
+    log('⏳ Enviando leads a Instantly…');
+    const r = await fetch(`/campanas/${campanaId}/enviar/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    const d = await r.json();
+    log(`✅ Enviados: ${d.enviados} | Errores: ${d.errores.length}`);
+    if (d.errores.length) d.errores.forEach(e => log(`  ⚠ ${e}`));
+    setTimeout(() => location.reload(), 1200);
+  }
+
+  async function sincronizar() {
+    log('⏳ Sincronizando respuestas…');
+    const r = await fetch(`/campanas/${campanaId}/sincronizar/`, {
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    const d = await r.json();
+    log(`✅ Respuestas procesadas: ${d.procesados}`);
+    setTimeout(() => location.reload(), 1200);
+  }
+
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+
+  document.getElementById('modal-email').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModal();
+  });
+</script>
+{% endblock %}
