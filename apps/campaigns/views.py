@@ -7,7 +7,6 @@ import anthropic
 import requests
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -23,16 +22,14 @@ PRECIO_STOCKMENU_CLP = 45_000
 def _superuser_required(view_func):
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated or not request.user.is_superuser:
-            messages.error(request, 'Acceso restringido a administradores.')
-            return redirect('login')
+            return redirect('/login/')
         return view_func(request, *args, **kwargs)
     return wrapper
 
 
 def dashboard(request):
     if not request.user.is_authenticated or not request.user.is_superuser:
-        messages.error(request, 'Acceso restringido a administradores.')
-        return redirect('login')
+        return redirect('/login/')
 
     campanas = Campana.objects.all().order_by('-creada')
 
@@ -59,8 +56,7 @@ def dashboard(request):
 
 def campana_nueva(request):
     if not request.user.is_authenticated or not request.user.is_superuser:
-        messages.error(request, 'Acceso restringido a administradores.')
-        return redirect('login')
+        return redirect('/login/')
 
     if request.method == 'POST':
         campana = Campana.objects.create(
@@ -82,8 +78,7 @@ def campana_nueva(request):
 
 def campana_detalle(request, pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
-        messages.error(request, 'Acceso restringido a administradores.')
-        return redirect('login')
+        return redirect('/login/')
 
     campana = get_object_or_404(Campana, pk=pk)
     prospectos = campana.prospectos.select_related('email_generado').order_by('-creado')
@@ -373,8 +368,7 @@ def _crear_campana_instantly(campana):
 
 def campana_emails(request, pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
-        messages.error(request, 'Acceso restringido a administradores.')
-        return redirect('login')
+        return redirect('/login/')
 
     campana = get_object_or_404(Campana, pk=pk)
     filtro = request.GET.get('filtro', '')
@@ -399,8 +393,7 @@ def campana_emails(request, pk):
 
 def campana_respuestas(request, pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
-        messages.error(request, 'Acceso restringido a administradores.')
-        return redirect('login')
+        return redirect('/login/')
 
     campana = get_object_or_404(Campana, pk=pk)
     respondieron = campana.prospectos.filter(
@@ -451,8 +444,7 @@ def sincronizar_respuestas(request, pk):
 
 def crm(request):
     if not request.user.is_authenticated or not request.user.is_superuser:
-        messages.error(request, 'Acceso restringido a administradores.')
-        return redirect('login')
+        return redirect('/login/')
 
     entradas = ProspectoCRM.objects.select_related(
         'prospecto', 'prospecto__campana'
