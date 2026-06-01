@@ -172,16 +172,17 @@ def generar_emails(request, pk):
         return JsonResponse({'error': 'Sin permiso'}, status=403)
 
     campana = get_object_or_404(Campana, pk=pk)
-    prospectos_pendientes = campana.prospectos.filter(estado='pendiente')
+    todos_los_prospectos = campana.prospectos.all()
 
     generados = 0
     errores = []
 
-    for prospecto in prospectos_pendientes:
+    for prospecto in todos_los_prospectos:
         try:
             _generar_email_claude(prospecto, campana)
-            prospecto.estado = 'email_generado'
-            prospecto.save(update_fields=['estado'])
+            if prospecto.estado == 'pendiente':
+                prospecto.estado = 'email_generado'
+                prospecto.save(update_fields=['estado'])
             generados += 1
         except Exception as e:
             logger.error(f'Error generando email para {prospecto.email}: {e}')
