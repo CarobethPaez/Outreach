@@ -206,7 +206,13 @@ def _generar_email_claude(prospecto, campana):
             f"Tono: {campana.get_tono_display()}. Máximo 120 palabras. Sin asunto — solo el cuerpo. "
             f"CTA: proponer 15 minutos para mostrar el agente en acción. "
             f"URL: https://www.stock-wise.cloud "
-            f"NO mencionar que es generado por IA. NO usar frases genéricas."
+            f"NO mencionar que es generado por IA. NO usar frases genéricas. "
+            f"Cierra el email con esta firma exacta, respetando los saltos de línea:\n\n"
+            f"Saludos,\n\n"
+            f"Carolina Páez López\n"
+            f"Creadora de StockWise\n"
+            f"soporte@stock-wise.cloud\n"
+            f"www.stock-wise.cloud"
         )
     else:
         prompt_cuerpo = (
@@ -217,7 +223,13 @@ def _generar_email_claude(prospecto, campana):
             f"Tono: {campana.get_tono_display()}. Máximo 120 palabras. Sin asunto — solo el cuerpo. "
             f"CTA: mostrar cómo quedaría su carta digital en 10 minutos. "
             f"URL: stockmenu.cl "
-            f"NO mencionar que es generado por IA."
+            f"NO mencionar que es generado por IA. "
+            f"Cierra el email con esta firma exacta, respetando los saltos de línea:\n\n"
+            f"Saludos,\n\n"
+            f"Carolina Páez López\n"
+            f"Creadora de StockWise\n"
+            f"soporte@stock-wise.cloud\n"
+            f"www.stock-wise.cloud"
         )
 
     resp_cuerpo = cliente.messages.create(
