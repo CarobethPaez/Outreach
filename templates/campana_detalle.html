@@ -48,6 +48,11 @@
   <input type="file" id="csv-input" accept=".csv" style="display:none"
     onchange="importarCSV(this)">
 
+  <!-- Agregar prospecto manual -->
+  <button class="btn btn-secondary" onclick="document.getElementById('modal-prospecto').classList.add('open')">
+    + Agregar prospecto
+  </button>
+
   <!-- Generar emails -->
   <button class="btn btn-primary" id="btn-generar" onclick="generarEmails()">
     ✨ Generar emails con IA
@@ -75,8 +80,20 @@
 
 <!-- Tabla prospectos -->
 <div class="table-wrap">
-  <div class="table-header">
+  <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <h2>Prospectos <span class="text-muted text-sm">({{ prospectos.count }})</span></h2>
+    <form method="get" style="display:flex;align-items:center;gap:8px;">
+      <label class="text-sm text-muted" style="white-space:nowrap;">Canal:</label>
+      <select name="canal" class="form-control" style="min-width:130px;" onchange="this.form.submit()">
+        <option value="" {% if not filtro_canal %}selected{% endif %}>Todos</option>
+        {% for val, label in canales_prospecto %}
+        <option value="{{ val }}" {% if filtro_canal == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% if filtro_canal %}
+      <a href="?" class="btn btn-secondary btn-sm">✕</a>
+      {% endif %}
+    </form>
   </div>
   <table>
     <thead>
@@ -84,17 +101,28 @@
         <th>Nombre</th>
         <th>Empresa</th>
         <th>Cargo</th>
+        <th>Canal contacto</th>
         <th>Email</th>
-        <th>Estado</th>
+        <th>Estado email</th>
         <th>Email IA</th>
       </tr>
     </thead>
     <tbody>
       {% for p in prospectos %}
-      <tr>
-        <td>{{ p.nombre_completo }}</td>
+      <tr {% if p.contactado %}style="background:rgba(34,197,94,.06);"{% endif %}>
+        <td>
+          {{ p.nombre_completo }}
+          {% if p.contactado %}<span class="badge" style="background:rgba(34,197,94,.2);color:#16a34a;margin-left:6px;font-size:11px;">Contactado</span>{% endif %}
+        </td>
         <td>{{ p.empresa }}</td>
         <td class="text-muted">{{ p.cargo }}</td>
+        <td>
+          {% if p.canal_contacto %}
+          <span class="badge" style="background:rgba(99,102,241,.15);color:#6366f1;">{{ p.get_canal_contacto_display }}</span>
+          {% else %}
+          <span class="text-muted text-sm">—</span>
+          {% endif %}
+        </td>
         <td class="text-muted">{{ p.email }}</td>
         <td>
           <span class="badge" style="
@@ -120,13 +148,66 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="6" class="text-muted" style="text-align:center; padding:28px;">
-          Sin prospectos. Importa un CSV de Apollo.
+        <td colspan="7" class="text-muted" style="text-align:center; padding:28px;">
+          Sin prospectos. Importa un CSV de Apollo o agrega uno manualmente.
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+<!-- Modal agregar prospecto manual -->
+<div class="modal-overlay" id="modal-prospecto">
+  <div class="modal">
+    <h3>Agregar prospecto</h3>
+    <form method="post" action="{% url 'agregar_prospecto' campana.pk %}">
+      {% csrf_token %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>Nombre *</label>
+          <input type="text" name="nombre" required>
+        </div>
+        <div class="form-group">
+          <label>Apellido</label>
+          <input type="text" name="apellido">
+        </div>
+        <div class="form-group">
+          <label>Empresa *</label>
+          <input type="text" name="empresa" required>
+        </div>
+        <div class="form-group">
+          <label>Cargo</label>
+          <input type="text" name="cargo">
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" name="email" required>
+        </div>
+        <div class="form-group">
+          <label>LinkedIn URL</label>
+          <input type="url" name="linkedin_url" placeholder="https://linkedin.com/in/...">
+        </div>
+        <div class="form-group">
+          <label>Canal de contacto</label>
+          <select name="canal_contacto" class="form-control">
+            <option value="">— Sin canal —</option>
+            {% for val, label in canales_prospecto %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:24px;">
+          <input type="checkbox" name="contactado" id="chk-contactado" style="width:auto;">
+          <label for="chk-contactado" style="margin:0;">Ya contactado</label>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-prospecto').classList.remove('open')">Cancelar</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Modal email -->

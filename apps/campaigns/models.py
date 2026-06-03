@@ -55,6 +55,16 @@ class Prospecto(models.Model):
         ('no_interesado', 'No interesado'),
         ('descartado', 'Descartado'),
     ]
+    CANALES = [
+        ('linkedin', 'LinkedIn'),
+        ('rrss', 'RRSS'),
+        ('telefono', 'Teléfono'),
+        ('email', 'Email'),
+    ]
+    FUENTES = [
+        ('apollo', 'Apollo'),
+        ('manual', 'Manual'),
+    ]
 
     campana = models.ForeignKey(Campana, on_delete=models.CASCADE, related_name='prospectos')
     nombre = models.CharField(max_length=100)
@@ -66,7 +76,10 @@ class Prospecto(models.Model):
     linkedin_url = models.URLField(blank=True)
     ciudad = models.CharField(max_length=100, blank=True)
     tamano_empresa = models.CharField(max_length=50, blank=True)
-    estado = models.CharField(max_length=30, choices=ESTADOS, default='pendiente')
+    estado = models.CharField(max_length=30, choices=ESTADOS, default='pendiente', verbose_name='Estado email')
+    canal_contacto = models.CharField(max_length=20, choices=CANALES, blank=True, default='')
+    contactado = models.BooleanField(default=False)
+    fuente = models.CharField(max_length=20, choices=FUENTES, default='apollo')
     instantly_lead_id = models.CharField(max_length=200, blank=True)
     creado = models.DateTimeField(auto_now_add=True)
 

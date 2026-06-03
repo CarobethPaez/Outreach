@@ -90,12 +90,45 @@ def campana_detalle(request, pk):
         and not p.email_generado.enviado_a_instantly
     )
 
+    filtro_canal = request.GET.get('canal', '')
+    if filtro_canal:
+        prospectos = prospectos.filter(canal_contacto=filtro_canal)
+
     return render(request, 'campana_detalle.html', {
         'campana': campana,
         'prospectos': prospectos,
         'emails_aprobados_no_enviados': emails_aprobados_no_enviados,
         'estados_prospecto': Prospecto.ESTADOS,
+        'canales_prospecto': Prospecto.CANALES,
+        'filtro_canal': filtro_canal,
     })
+
+
+@require_POST
+def agregar_prospecto(request, pk):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    campana = get_object_or_404(Campana, pk=pk)
+    try:
+        prospecto = Prospecto.objects.create(
+            campana=campana,
+            nombre=request.POST.get('nombre', '').strip(),
+            apellido=request.POST.get('apellido', '').strip(),
+            empresa=request.POST.get('empresa', '').strip(),
+            cargo=request.POST.get('cargo', '').strip(),
+            email=request.POST.get('email', '').strip(),
+            linkedin_url=request.POST.get('linkedin_url', '').strip(),
+            canal_contacto=request.POST.get('canal_contacto', ''),
+            contactado=request.POST.get('contactado') == 'on',
+            fuente='manual',
+        )
+        campana.total_prospectos = campana.prospectos.count()
+        campana.save(update_fields=['total_prospectos'])
+        messages.success(request, f'Prospecto "{prospecto.nombre_completo}" agregado.')
+    except Exception as e:
+        messages.error(request, f'Error al agregar prospecto: {e}')
+    return redirect('campana_detalle', pk=pk)
 
 
 @require_POST
