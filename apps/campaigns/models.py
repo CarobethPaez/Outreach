@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 
 
 class Campana(models.Model):
@@ -72,7 +73,7 @@ class Prospecto(models.Model):
     cargo = models.CharField(max_length=150, blank=True)
     empresa = models.CharField(max_length=150)
     industria = models.CharField(max_length=100, blank=True)
-    email = models.EmailField()
+    email = models.EmailField(blank=True)
     linkedin_url = models.URLField(blank=True)
     ciudad = models.CharField(max_length=100, blank=True)
     tamano_empresa = models.CharField(max_length=50, blank=True)
@@ -86,7 +87,13 @@ class Prospecto(models.Model):
     class Meta:
         verbose_name = 'Prospecto'
         verbose_name_plural = 'Prospectos'
-        unique_together = [('campana', 'email')]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['campana', 'email'],
+                condition=~Q(email=''),
+                name='unique_campana_email_nonempty',
+            )
+        ]
 
     def __str__(self):
         return f"{self.nombre} {self.apellido} — {self.empresa}"

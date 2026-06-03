@@ -245,8 +245,9 @@
           <input type="text" name="cargo">
         </div>
         <div class="form-group">
-          <label>Email *</label>
-          <input type="email" name="email" required>
+          <label>Email <span id="email-required-mark">*</span></label>
+          <input type="email" name="email" id="prospecto-email" required>
+          <span id="email-hint" class="text-muted text-sm" style="display:none;">Opcional para contactos LinkedIn / RRSS</span>
         </div>
         <div class="form-group">
           <label>LinkedIn URL</label>
@@ -427,5 +428,21 @@
   document.getElementById('modal-email').addEventListener('click', function(e) {
     if (e.target === this) cerrarModal();
   });
+
+  // Email opcional cuando canal es LinkedIn o RRSS
+  const canalSelect = document.querySelector('#modal-prospecto select[name="canal_contacto"]');
+  const emailInput = document.getElementById('prospecto-email');
+  const emailMark = document.getElementById('email-required-mark');
+  const emailHint = document.getElementById('email-hint');
+  const CANALES_SIN_EMAIL = ['linkedin', 'rrss'];
+
+  function actualizarEmailRequerido() {
+    const esOpcional = CANALES_SIN_EMAIL.includes(canalSelect.value);
+    emailInput.required = !esOpcional;
+    emailMark.style.display = esOpcional ? 'none' : '';
+    emailHint.style.display = esOpcional ? 'inline' : 'none';
+  }
+
+  canalSelect.addEventListener('change', actualizarEmailRequerido);
 </script>
 {% endblock %}
