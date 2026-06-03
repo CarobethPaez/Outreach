@@ -94,6 +94,8 @@ def campana_detalle(request, pk):
     if filtro_canal:
         prospectos = prospectos.filter(canal_contacto=filtro_canal)
 
+    hay_no_contactados = campana.prospectos.filter(contactado=False).exists()
+
     return render(request, 'campana_detalle.html', {
         'campana': campana,
         'prospectos': prospectos,
@@ -101,6 +103,7 @@ def campana_detalle(request, pk):
         'estados_prospecto': Prospecto.ESTADOS,
         'canales_prospecto': Prospecto.CANALES,
         'filtro_canal': filtro_canal,
+        'hay_no_contactados': hay_no_contactados,
     })
 
 
@@ -132,6 +135,27 @@ def agregar_prospecto(request, pk):
 
 
 @require_POST
+def marcar_contactados(request, pk):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    campana = get_object_or_404(Campana, pk=pk)
+    canal = request.POST.get('canal', '')
+    filtro_canal = request.POST.get('filtro_canal', '')
+
+    qs = campana.prospectos.filter(contactado=False)
+    if filtro_canal:
+        qs = qs.filter(canal_contacto=filtro_canal)
+
+    campos = {'contactado': True}
+    if canal:
+        campos['canal_contacto'] = canal
+
+    actualizados = qs.update(**campos)
+    return JsonResponse({'actualizados': actualizados})
+
+
+@require_POST
 def importar_csv(request, pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return JsonResponse({'error': 'Sin permiso'}, status=403)
@@ -140,6 +164,9 @@ def importar_csv(request, pk):
     archivo = request.FILES.get('archivo')
     if not archivo:
         return JsonResponse({'error': 'No se recibió archivo'}, status=400)
+
+    canal_csv = request.POST.get('canal_contacto', '')
+    contactado_csv = request.POST.get('contactado') == '1'
 
     contenido = archivo.read().decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(contenido))
@@ -172,6 +199,10 @@ def importar_csv(request, pk):
                 for col_csv, campo_modelo in COLUMNAS.items()
                 if col_csv != 'Email'
             }
+            if canal_csv:
+                datos['canal_contacto'] = canal_csv
+            if contactado_csv:
+                datos['contactado'] = True
 
             prospecto, creado = Prospecto.objects.get_or_create(
                 campana=campana,

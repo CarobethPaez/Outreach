@@ -42,16 +42,21 @@
 <!-- Acciones -->
 <div class="flex gap-2 flex-wrap" style="margin-bottom:24px;">
   <!-- Importar CSV -->
-  <button class="btn btn-secondary" onclick="document.getElementById('csv-input').click()">
+  <button class="btn btn-secondary" onclick="document.getElementById('modal-csv').classList.add('open')">
     📁 Importar CSV (Apollo)
   </button>
-  <input type="file" id="csv-input" accept=".csv" style="display:none"
-    onchange="importarCSV(this)">
 
   <!-- Agregar prospecto manual -->
   <button class="btn btn-secondary" onclick="document.getElementById('modal-prospecto').classList.add('open')">
     + Agregar prospecto
   </button>
+
+  <!-- Marcar todos como contactados -->
+  {% if hay_no_contactados %}
+  <button class="btn btn-secondary" onclick="document.getElementById('modal-marcar').classList.add('open')" style="color:#16a34a;border-color:#16a34a;">
+    ✓ Marcar todos como contactados
+  </button>
+  {% endif %}
 
   <!-- Generar emails -->
   <button class="btn btn-primary" id="btn-generar" onclick="generarEmails()">
@@ -111,8 +116,12 @@
       {% for p in prospectos %}
       <tr {% if p.contactado %}style="background:rgba(34,197,94,.06);"{% endif %}>
         <td>
+          {% if p.contactado %}
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:6px;vertical-align:middle;" title="Contactado"></span>
+          {% else %}
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d1d5db;margin-right:6px;vertical-align:middle;" title="Pendiente"></span>
+          {% endif %}
           {{ p.nombre_completo }}
-          {% if p.contactado %}<span class="badge" style="background:rgba(34,197,94,.2);color:#16a34a;margin-left:6px;font-size:11px;">Contactado</span>{% endif %}
         </td>
         <td>{{ p.empresa }}</td>
         <td class="text-muted">{{ p.cargo }}</td>
@@ -155,6 +164,61 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+<!-- Modal importar CSV -->
+<div class="modal-overlay" id="modal-csv">
+  <div class="modal">
+    <h3>Importar CSV (Apollo)</h3>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Archivo CSV *</label>
+      <input type="file" id="csv-input" accept=".csv" style="display:block;margin-top:6px;">
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Canal de contacto (opcional)</label>
+      <select id="csv-canal" class="form-control" style="margin-top:6px;">
+        <option value="">— Sin asignar —</option>
+        {% for val, label in canales_prospecto %}
+        <option value="{{ val }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+      <input type="checkbox" id="csv-contactado" style="width:auto;">
+      <label for="csv-contactado" style="margin:0;">Marcar todos como ya contactados</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="confirmarImportCSV()">Importar</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-csv').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal marcar todos como contactados -->
+<div class="modal-overlay" id="modal-marcar">
+  <div class="modal">
+    <h3>Marcar como contactados</h3>
+    <p class="text-sm text-muted" style="margin-bottom:16px;">
+      {% if filtro_canal %}
+      Se actualizarán los prospectos con canal <strong>{{ filtro_canal }}</strong> que aún no fueron contactados.
+      {% else %}
+      Se actualizarán <strong>todos</strong> los prospectos no contactados de esta campaña.
+      {% endif %}
+    </p>
+    <div class="form-group" style="margin-bottom:20px;">
+      <label>Canal de contacto *</label>
+      <select id="marcar-canal" class="form-control" style="margin-top:6px;" required>
+        <option value="">— Seleccionar —</option>
+        {% for val, label in canales_prospecto %}
+        <option value="{{ val }}" {% if filtro_canal == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" style="background:#16a34a;border-color:#16a34a;" onclick="confirmarMarcarContactados()">✓ Confirmar</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-marcar').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
 </div>
 
 <!-- Modal agregar prospecto manual -->
@@ -278,11 +342,17 @@
     if (r.ok) { cerrarModal(); location.reload(); }
   }
 
-  async function importarCSV(input) {
-    const file = input.files[0];
-    if (!file) return;
+  async function confirmarImportCSV() {
+    const fileInput = document.getElementById('csv-input');
+    const file = fileInput.files[0];
+    if (!file) { alert('Selecciona un archivo CSV.'); return; }
+    document.getElementById('modal-csv').classList.remove('open');
     const fd = new FormData();
     fd.append('archivo', file);
+    const canal = document.getElementById('csv-canal').value;
+    const contactado = document.getElementById('csv-contactado').checked ? '1' : '0';
+    if (canal) fd.append('canal_contacto', canal);
+    fd.append('contactado', contactado);
     log('⏳ Importando CSV…');
     const r = await fetch(`/campanas/${campanaId}/importar/`, {
       method: 'POST',
@@ -293,6 +363,24 @@
     log(`✅ Creados: ${d.creados} | Actualizados: ${d.actualizados} | Errores: ${d.errores.length}`);
     if (d.errores.length) d.errores.forEach(e => log(`  ⚠ ${e}`));
     setTimeout(() => location.reload(), 1200);
+  }
+
+  async function confirmarMarcarContactados() {
+    const canal = document.getElementById('marcar-canal').value;
+    if (!canal) { alert('Selecciona un canal de contacto.'); return; }
+    document.getElementById('modal-marcar').classList.remove('open');
+    const fd = new FormData();
+    fd.append('canal', canal);
+    fd.append('filtro_canal', '{{ filtro_canal }}');
+    log('⏳ Marcando prospectos como contactados…');
+    const r = await fetch(`/campanas/${campanaId}/marcar-contactados/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')},
+      body: fd
+    });
+    const d = await r.json();
+    log(`✅ Actualizados: ${d.actualizados} prospectos`);
+    setTimeout(() => location.reload(), 1000);
   }
 
   async function generarEmails() {
