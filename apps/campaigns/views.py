@@ -179,7 +179,7 @@ def importar_csv(request, pk):
         'First Name': 'nombre',
         'Last Name': 'apellido',
         'Title': 'cargo',
-        'Company': 'empresa',
+        'Company Name': 'empresa',
         'Industry': 'industria',
         'Email': 'email',
         'LinkedIn URL': 'linkedin_url',
