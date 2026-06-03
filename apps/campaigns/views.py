@@ -519,6 +519,18 @@ def sincronizar_respuestas(request, pk):
     return JsonResponse({'procesados': procesados})
 
 
+def deck(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return redirect('/login/')
+    return render(request, 'deck.html')
+
+
+def ensayo(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return redirect('/login/')
+    return render(request, 'ensayo.html')
+
+
 def crm(request):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return redirect('/login/')

@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}Ensayo de Objeciones{% endblock %}
+{% block page_title %}Ensayo de Objeciones — StockWise{% endblock %}
+{% block nav_ensayo %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ensayo-wrap {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .progress-bar {
+    height: 3px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #3b82f6);
+    border-radius: 2px;
+    transition: width .4s ease;
+  }
+
+  .card-wrap {
+    perspective: 1000px;
+    margin-bottom: 28px;
+  }
+
+  .flashcard {
+    position: relative;
+    min-height: 280px;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: transform .45s ease;
+  }
+
+  .flashcard.flipped { transform: rotateY(180deg); }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 44px 48px;
+    text-align: center;
+  }
+
+  .card-front {
+    background: #0f1a14;
+    border: 1px solid rgba(34,197,94,.2);
+  }
+
+  .card-back {
+    background: #0a0f1a;
+    border: 1px solid rgba(59,130,246,.2);
+    transform: rotateY(180deg);
+  }
+
+  .card-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+  .card-front .card-label { color: #22c55e; }
+  .card-back  .card-label { color: #3b82f6; }
+
+  .card-question {
+    font-size: 19px;
+    font-weight: 600;
+    color: #f0f0f0;
+    line-height: 1.45;
+  }
+
+  .card-answer {
+    font-size: 15.5px;
+    color: #c8c8c8;
+    line-height: 1.65;
+  }
+
+  .card-hint {
+    position: absolute;
+    bottom: 18px;
+    font-size: 11.5px;
+    color: #333;
+  }
+
+  .card-num {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    font-size: 11px;
+    color: #333;
+    font-weight: 600;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .controls-left { display: flex; gap: 10px; }
+
+  .badge-num {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: #1a1a1a;
+    border: 1px solid #2e2e2e;
+    border-radius: 20px;
+    font-size: 12.5px;
+    color: #666;
+  }
+
+  /* Dot indicators */
+  .question-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 24px;
+    justify-content: center;
+  }
+
+  .q-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #222;
+    cursor: pointer;
+    transition: background .2s, transform .2s;
+  }
+
+  .q-dot.seen { background: #22c55e; }
+  .q-dot.current { background: #3b82f6; transform: scale(1.4); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ensayo-wrap">
+
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress" style="width:0%"></div>
+  </div>
+
+  <div class="card-wrap">
+    <div class="flashcard" id="flashcard" onclick="voltear()">
+      <div class="card-face card-front">
+        <div class="card-label">Objeción del cliente</div>
+        <div class="card-question" id="q-text"></div>
+        <div class="card-hint">Click para ver la respuesta →</div>
+        <div class="card-num" id="q-num"></div>
+      </div>
+      <div class="card-face card-back">
+        <div class="card-label">Respuesta sugerida</div>
+        <div class="card-answer" id="a-text"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="controls-left">
+      <button class="btn btn-secondary" onclick="anterior()">← Anterior</button>
+      <button class="btn btn-secondary" onclick="siguiente()">Siguiente →</button>
+    </div>
+    <span class="badge-num" id="badge-num">1 / 12</span>
+    <button class="btn btn-primary" onclick="aleatorio()" style="background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.25);">
+      🎲 Aleatoria
+    </button>
+  </div>
+
+  <div class="question-dots" id="q-dots"></div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const QA = [
+    {
+      q: "¿Cómo llegaste a que StockWise ahorra un 70% del tiempo en control de inventario?",
+      a: "Lo medimos con nuestros clientes piloto comparando el tiempo que les tomaba el conteo y control manual semanal versus hacerlo con StockWise. En promedio pasaron de 6–8 horas semanales a 1–2 horas. Es una mejora real y documentada, no una estimación de marketing."
+    },
+    {
+      q: "¿Cómo sabes que se reduce un 15% el costo de inventario?",
+      a: "Ese número viene de dos factores medibles: reducción de sobrestock (menos capital inmovilizado) y cero quiebres de stock crítico que obligaban a compras de emergencia a precios inflados. No es una reducción mágica — es evitar el desperdicio que ya existía antes."
+    },
+    {
+      q: "¿En qué se diferencia de una planilla Excel bien hecha?",
+      a: "Excel te dice qué hay ahora si lo actualizas tú. StockWise detecta patrones de consumo y te avisa antes de que haya un problema, sin que nadie tenga que ingresar ni analizar nada. La diferencia está en que el sistema trabaja para ti, no al revés. Además, no se rompe cuando alguien borra una fórmula."
+    },
+    {
+      q: "¿Por qué confiaría mis datos de inventario a una startup que recién empieza?",
+      a: "Es válido preguntarlo. La diferencia es que tus datos están en tu cuenta, respaldados en la nube, y tienes acceso a ellos en todo momento. No somos la única alternativa — pero somos la que te da soporte directo de la persona que construyó el sistema, sin ticket de soporte ni chatbot. Si algo falla, me llamas a mí."
+    },
+    {
+      q: "¿Qué pasa si me quedo sin internet o el sistema cae?",
+      a: "El sistema vive en la nube con infraestructura de alta disponibilidad. Ante una caída puntual, tus datos no se pierden — se sincronizan al volver. Para operación offline puntual, hoy recomendamos tener el último reporte exportado como respaldo. Es algo que estamos trabajando como funcionalidad nativa."
+    },
+    {
+      q: "¿Cuánto cuesta después del piloto?",
+      a: "Los planes parten desde UF 3 por mes, que son aproximadamente $115.000 CLP. Hay distintos niveles según el volumen de SKUs y usuarios. Durante el piloto te muestro exactamente qué plan se ajusta a tu operación — sin sorpresas después."
+    },
+    {
+      q: "¿Cuánto tiempo toma implementarlo?",
+      a: "Menos de lo que imaginas. En una sesión de 30–45 minutos cargamos tu inventario inicial y configuras las alertas. Eso es todo. No hay integración de sistemas ni instalación de nada. Si tienes tu inventario en Excel, lo importamos directamente."
+    },
+    {
+      q: "¿Se integra con mi sistema actual (ERP, SAP, etc.)?",
+      a: "Hoy funciona de forma independiente o importando datos desde Excel/CSV. Las integraciones con ERPs están en el roadmap, y las priorizamos según lo que necesitan los clientes del piloto. Si tienes un sistema específico, es una conversación que vale la pena tener — puede ser más simple de lo que parece."
+    },
+    {
+      q: "¿Qué tan diferente es de lo que ya ofrece mi ERP?",
+      a: "La mayoría de los ERPs tienen módulo de inventario pero no inteligencia proactiva: te dicen qué hay, no qué va a pasar. StockWise agrega la capa de alertas predictivas y sugerencias de reabastecimiento. Muchos de nuestros clientes tienen ERP y usan StockWise como complemento de decisión, no como reemplazo."
+    },
+    {
+      q: "¿Por qué debería cambiar algo que hoy funciona aunque sea con planillas?",
+      a: "No te pido que cambies nada — te pido 30 días para que veas si hay valor. Si al final del piloto tu planilla sigue siendo la mejor opción, al menos habrás descartado una alternativa con información real. Lo que sí sé es que lo que 'funciona' hoy tiene un costo oculto en tiempo y errores que pocas veces se mide."
+    },
+    {
+      q: "¿Tienes casos de éxito en Chile?",
+      a: "Estamos en etapa de pilotos activos con clientes en Chile. Es cierto que no tenemos casos publicados aún — eso es algo que construimos con los primeros clientes, que tienen acceso directo a la creadora y condiciones preferenciales. Tú serías parte de esa historia."
+    },
+    {
+      q: "¿Qué garantía me das de que no voy a perder mis datos?",
+      a: "Tus datos se respaldan automáticamente en la nube y puedes exportarlos en cualquier momento en formato estándar (Excel/CSV). No estás atrapado en el sistema — si mañana decides no usarlo más, te vas con todos tus datos. Esa es la única garantía real que puedo darte."
+    },
+  ];
+
+  let current = 0;
+  const seen = new Set();
+
+  const flashcard = document.getElementById('flashcard');
+  const qText = document.getElementById('q-text');
+  const aText = document.getElementById('a-text');
+  const qNum  = document.getElementById('q-num');
+  const badge = document.getElementById('badge-num');
+  const progress = document.getElementById('progress');
+  const dotsEl = document.getElementById('q-dots');
+
+  // Build dots
+  QA.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'q-dot';
+    d.title = `Pregunta ${i + 1}`;
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function render() {
+    flashcard.classList.remove('flipped');
+    qText.textContent = QA[current].q;
+    aText.textContent = QA[current].a;
+    qNum.textContent  = `${current + 1} / ${QA.length}`;
+    badge.textContent = `${current + 1} / ${QA.length}`;
+    seen.add(current);
+    progress.style.width = `${(seen.size / QA.length) * 100}%`;
+
+    // Dots
+    Array.from(dotsEl.children).forEach((d, i) => {
+      d.className = 'q-dot' + (seen.has(i) && i !== current ? ' seen' : '') + (i === current ? ' current' : '');
+    });
+  }
+
+  function voltear() { flashcard.classList.toggle('flipped'); }
+  function goTo(n)   { current = (n + QA.length) % QA.length; render(); }
+  function siguiente(){ goTo(current + 1); }
+  function anterior() { goTo(current - 1); }
+  function aleatorio(){
+    let n;
+    do { n = Math.floor(Math.random() * QA.length); } while (n === current && QA.length > 1);
+    goTo(n);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') siguiente();
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')  anterior();
+    if (e.key === ' ') { e.preventDefault(); voltear(); }
+  });
+
+  render();
+</script>
+{% endblock %}

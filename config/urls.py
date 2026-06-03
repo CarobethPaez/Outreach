@@ -17,6 +17,8 @@ urlpatterns = [
     path('emails/<int:pk>/aprobar/', views.aprobar_email, name='aprobar_email'),
     path('emails/<int:pk>/editar/', views.editar_email, name='editar_email'),
     path('crm/', views.crm, name='crm'),
+    path('deck/', views.deck, name='deck'),
+    path('ensayo/', views.ensayo, name='ensayo'),
     path('login/', LoginView.as_view(template_name='login.html'), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
 ]
