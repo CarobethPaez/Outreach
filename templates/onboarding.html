@@ -1,0 +1,767 @@
+{% extends "base.html" %}
+{% block title %}Onboarding StockWise{% endblock %}
+{% block page_title %}Onboarding — Piloto StockWise{% endblock %}
+{% block nav_onboarding %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ob-wrap { max-width: 860px; margin: 0 auto; }
+
+  /* Top summary bar */
+  .ob-summary {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 20px;
+    background: #1a1a1a;
+    border: 1px solid #2e2e2e;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+  }
+  .ob-summary-left { display: flex; flex-direction: column; gap: 6px; }
+  .ob-summary-title { font-size: 13px; color: #888; font-weight: 500; }
+  .ob-progress-bar { height: 8px; background: #242424; border-radius: 4px; overflow: hidden; width: 100%; }
+  .ob-progress-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #3b82f6); border-radius: 4px; transition: width .4s ease; }
+  .ob-pct { font-size: 28px; font-weight: 800; color: #22c55e; white-space: nowrap; }
+  .ob-pct span { font-size: 13px; font-weight: 400; color: #666; margin-left: 2px; }
+  .ob-step-count { font-size: 12px; color: #555; }
+
+  /* Phase block */
+  .phase {
+    margin-bottom: 24px;
+    background: #1a1a1a;
+    border: 1px solid #2e2e2e;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid #2e2e2e;
+    transition: background .15s;
+  }
+  .phase-header:hover { background: #242424; }
+
+  .phase-icon {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+
+  .phase-meta { flex: 1; }
+  .phase-name { font-size: 14.5px; font-weight: 600; color: #e8e8e8; }
+  .phase-days { font-size: 12px; color: #666; margin-top: 2px; }
+
+  .phase-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #242424;
+    color: #555;
+    white-space: nowrap;
+  }
+  .phase-badge.done { background: rgba(34,197,94,.12); color: #22c55e; }
+
+  .phase-chevron { font-size: 12px; color: #444; transition: transform .2s; }
+  .phase.open .phase-chevron { transform: rotate(90deg); }
+
+  .phase-body { display: none; }
+  .phase.open .phase-body { display: block; }
+
+  /* Step */
+  .step-item {
+    border-bottom: 1px solid #242424;
+    padding: 16px 20px 16px 20px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    transition: background .1s;
+  }
+  .step-item:last-child { border-bottom: none; }
+  .step-item:hover { background: rgba(255,255,255,.015); }
+  .step-item.done .step-title { text-decoration: line-through; color: #555; }
+
+  .step-check {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: background .15s, border-color .15s;
+  }
+  .step-check:hover { border-color: #22c55e; }
+  .step-item.done .step-check { background: #22c55e; border-color: #22c55e; }
+  .step-check-icon { display: none; font-size: 10px; color: #000; font-weight: 800; }
+  .step-item.done .step-check-icon { display: block; }
+
+  .step-content {}
+  .step-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .step-title { font-size: 13.5px; font-weight: 600; color: #e8e8e8; line-height: 1.35; }
+  .step-time {
+    font-size: 11px;
+    color: #555;
+    background: #242424;
+    border-radius: 4px;
+    padding: 2px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .step-desc { font-size: 13px; color: #888; line-height: 1.55; margin-bottom: 8px; }
+
+  /* Sub-items (bullet list inside step) */
+  .step-bullets { list-style: none; display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+  .step-bullets li {
+    font-size: 12.5px;
+    color: #777;
+    display: flex; align-items: flex-start; gap: 8px;
+    line-height: 1.4;
+  }
+  .step-bullets li::before { content: "·"; color: #444; flex-shrink: 0; margin-top: 0; }
+
+  /* Resource tag */
+  .step-resource {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: #3b82f6;
+    background: rgba(59,130,246,.08);
+    border: 1px solid rgba(59,130,246,.15);
+    border-radius: 5px;
+    padding: 3px 9px;
+    text-decoration: none;
+    cursor: default;
+  }
+
+  /* Reset button */
+  .ob-reset-btn {
+    background: none;
+    border: 1px solid #2e2e2e;
+    color: #555;
+    border-radius: 7px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+    margin-top: 16px;
+  }
+  .ob-reset-btn:hover { color: #ef4444; border-color: #ef4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ob-wrap">
+
+  <!-- Progress summary -->
+  <div class="ob-summary">
+    <div class="ob-summary-left">
+      <div class="ob-summary-title">Progreso del piloto</div>
+      <div class="ob-progress-bar"><div class="ob-progress-fill" id="ob-fill" style="width:0%"></div></div>
+      <div class="ob-step-count" id="ob-step-count">0 de 24 pasos completados</div>
+    </div>
+    <div class="ob-pct" id="ob-pct">0%<span>completado</span></div>
+  </div>
+
+  <!-- ═══════════════════ FASE 1 ═══════════════════ -->
+  <div class="phase open" id="phase-1">
+    <div class="phase-header" onclick="togglePhase('phase-1')">
+      <div class="phase-icon" style="background:rgba(234,179,8,.12);color:#eab308;">👋</div>
+      <div class="phase-meta">
+        <div class="phase-name">Fase 1 — Bienvenida y configuración inicial</div>
+        <div class="phase-days">Día 1</div>
+      </div>
+      <div class="phase-badge" id="badge-phase-1">0/4</div>
+      <div class="phase-chevron">▶</div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step-item" id="step-1-1">
+        <div class="step-check" onclick="toggleStep('step-1-1')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">1.1 — Reunión de kickoff</div>
+            <div class="step-time">⏱ 30 min</div>
+          </div>
+          <div class="step-desc">Primera reunión para alinear expectativas y dejar todo listo para arrancar.</div>
+          <ul class="step-bullets">
+            <li>Presentar al equipo que usará StockWise</li>
+            <li>Definir el responsable interno (campeón del sistema)</li>
+            <li>Establecer objetivos del piloto en términos concretos</li>
+            <li>Acordar métricas de éxito: tiempo ahorrado, quiebres evitados, costo de inventario</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-1-2">
+        <div class="step-check" onclick="toggleStep('step-1-2')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">1.2 — Creación de cuenta</div>
+            <div class="step-time">⏱ 15 min</div>
+          </div>
+          <div class="step-desc">Alta en la plataforma y configuración de accesos.</div>
+          <ul class="step-bullets">
+            <li>Envío de URL de acceso personalizada al cliente</li>
+            <li>Creación de credenciales del administrador principal</li>
+            <li>Invitar usuarios del equipo (máximo 3 cuentas en piloto)</li>
+            <li>Verificar acceso y login correcto de todos los usuarios</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-1-3">
+        <div class="step-check" onclick="toggleStep('step-1-3')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">1.3 — Configuración de la empresa</div>
+            <div class="step-time">⏱ 10 min</div>
+          </div>
+          <div class="step-desc">Datos básicos de la empresa en el sistema.</div>
+          <ul class="step-bullets">
+            <li>Nombre de la empresa y RUT</li>
+            <li>Dirección y datos de contacto</li>
+            <li>Moneda: CLP (peso chileno)</li>
+            <li>Zona horaria: Santiago (GMT-4 / GMT-3)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-1-4">
+        <div class="step-check" onclick="toggleStep('step-1-4')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">1.4 — Definir categorías de inventario</div>
+            <div class="step-time">⏱ 20 min</div>
+          </div>
+          <div class="step-desc">Estructura de categorías para organizar los productos. Ejemplos comunes:</div>
+          <ul class="step-bullets">
+            <li>Materias primas</li>
+            <li>Productos terminados</li>
+            <li>Repuestos y mantención</li>
+            <li>Insumos de oficina / operacionales</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FASE 2 ═══════════════════ -->
+  <div class="phase" id="phase-2">
+    <div class="phase-header" onclick="togglePhase('phase-2')">
+      <div class="phase-icon" style="background:rgba(59,130,246,.12);color:#3b82f6;">📦</div>
+      <div class="phase-meta">
+        <div class="phase-name">Fase 2 — Carga inicial de inventario</div>
+        <div class="phase-days">Días 1–2</div>
+      </div>
+      <div class="phase-badge" id="badge-phase-2">0/4</div>
+      <div class="phase-chevron">▶</div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step-item" id="step-2-1">
+        <div class="step-check" onclick="toggleStep('step-2-1')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">2.1 — Preparar el archivo de inventario</div>
+            <div class="step-time">⏱ 1–2 h</div>
+          </div>
+          <div class="step-desc">El cliente prepara su inventario en el template CSV. Columnas requeridas:</div>
+          <ul class="step-bullets">
+            <li><strong>SKU</strong> — código único del producto (obligatorio)</li>
+            <li><strong>Nombre del producto</strong> — descripción clara</li>
+            <li><strong>Categoría</strong> — según las definidas en el paso 1.4</li>
+            <li><strong>Unidad de medida</strong> — unidad, kg, litro, caja, etc.</li>
+            <li><strong>Stock actual</strong> — cantidad en bodega hoy (obligatorio)</li>
+            <li><strong>Stock mínimo deseado</strong> — umbral de alerta inicial</li>
+            <li><strong>Precio de costo</strong> — costo unitario en CLP</li>
+            <li><strong>Proveedor principal</strong> — nombre del proveedor habitual</li>
+          </ul>
+          <span class="step-resource">📄 Template CSV de inventario</span>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-2-2">
+        <div class="step-check" onclick="toggleStep('step-2-2')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">2.2 — Limpiar los datos</div>
+            <div class="step-time">⏱ 30–60 min</div>
+          </div>
+          <div class="step-desc">Antes de importar, el archivo debe estar limpio para evitar errores.</div>
+          <ul class="step-bullets">
+            <li>Eliminar filas duplicadas (mismo SKU)</li>
+            <li>Estandarizar nombres de productos y categorías (sin tildes problemáticas, sin caracteres especiales)</li>
+            <li>Completar campos vacíos críticos: SKU y stock actual son obligatorios</li>
+            <li>Verificar que los precios de costo estén en CLP sin puntos ni símbolos ($)</li>
+            <li>Guardar como CSV con codificación UTF-8</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-2-3">
+        <div class="step-check" onclick="toggleStep('step-2-3')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">2.3 — Importar a StockWise</div>
+            <div class="step-time">⏱ 15 min</div>
+          </div>
+          <div class="step-desc">Carga del inventario en la plataforma.</div>
+          <ul class="step-bullets">
+            <li>Ir a Inventario → Importar CSV</li>
+            <li>Subir el archivo y revisar el preview de importación</li>
+            <li>Verificar que las columnas mapearon correctamente</li>
+            <li>Confirmar importación y revisar el conteo de productos cargados</li>
+            <li>Corregir errores de la lista de productos con problemas (si hay)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-2-4">
+        <div class="step-check" onclick="toggleStep('step-2-4')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">2.4 — Revisión manual rápida</div>
+            <div class="step-time">⏱ 20 min</div>
+          </div>
+          <div class="step-desc">Verificación con el equipo de los productos más críticos del negocio.</div>
+          <ul class="step-bullets">
+            <li>Identificar los 10 productos más críticos (los que, si se acaban, paran el negocio)</li>
+            <li>Verificar que el stock actual cargado coincide con la realidad física</li>
+            <li>Ajustar el stock mínimo de alerta si el valor importado es incorrecto</li>
+            <li>Agregar fotos de los productos (opcional, mejora la usabilidad)</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FASE 3 ═══════════════════ -->
+  <div class="phase" id="phase-3">
+    <div class="phase-header" onclick="togglePhase('phase-3')">
+      <div class="phase-icon" style="background:rgba(124,108,252,.12);color:#7c6cfc;">🔔</div>
+      <div class="phase-meta">
+        <div class="phase-name">Fase 3 — Alertas y proveedores</div>
+        <div class="phase-days">Días 2–3</div>
+      </div>
+      <div class="phase-badge" id="badge-phase-3">0/4</div>
+      <div class="phase-chevron">▶</div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step-item" id="step-3-1">
+        <div class="step-check" onclick="toggleStep('step-3-1')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">3.1 — Configurar umbrales de alerta</div>
+            <div class="step-time">⏱ 30 min</div>
+          </div>
+          <div class="step-desc">Define cuándo y cómo StockWise te avisa. Para cada categoría:</div>
+          <ul class="step-bullets">
+            <li><strong>Stock mínimo de alerta</strong> — cantidad en bodega que dispara la alerta</li>
+            <li><strong>Lead time del proveedor</strong> — cuántos días tarda el proveedor en entregar</li>
+            <li><strong>Cantidad de reposición sugerida</strong> — cuánto pedir por defecto al reponer</li>
+            <li>Regla recomendada: mínimo = consumo_semanal × lead_time_semanas × 1.3 (factor de seguridad)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-3-2">
+        <div class="step-check" onclick="toggleStep('step-3-2')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">3.2 — Registrar proveedores principales</div>
+            <div class="step-time">⏱ 30 min</div>
+          </div>
+          <div class="step-desc">Datos de los proveedores clave para que las sugerencias de compra sean accionables.</div>
+          <ul class="step-bullets">
+            <li>Nombre comercial y RUT del proveedor</li>
+            <li>Nombre y email del contacto de ventas</li>
+            <li>Teléfono o WhatsApp de contacto</li>
+            <li>Condiciones de pago: 30 / 60 / 90 días o contado</li>
+            <li>Tiempo de entrega promedio (días hábiles)</li>
+            <li>Pedido mínimo si aplica</li>
+          </ul>
+          <span class="step-resource">📄 Template de proveedores CSV</span>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-3-3">
+        <div class="step-check" onclick="toggleStep('step-3-3')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">3.3 — Configurar canales de notificación</div>
+            <div class="step-time">⏱ 15 min</div>
+          </div>
+          <div class="step-desc">Define quién recibe las alertas y con qué frecuencia.</div>
+          <ul class="step-bullets">
+            <li>Email del responsable de abastecimiento (quién recibe alertas)</li>
+            <li>Frecuencia: inmediata / resumen diario / resumen semanal</li>
+            <li>Número de WhatsApp para alertas urgentes (opcional)</li>
+            <li>Horario de envío de resúmenes (ej: lunes 8am)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-3-4">
+        <div class="step-check" onclick="toggleStep('step-3-4')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">3.4 — Primera alerta de prueba</div>
+            <div class="step-time">⏱ 10 min</div>
+          </div>
+          <div class="step-desc">Verificar end-to-end que el sistema de alertas funciona antes de depender de él.</div>
+          <ul class="step-bullets">
+            <li>Bajar manualmente el stock de un producto de prueba bajo el mínimo</li>
+            <li>Confirmar que llega la alerta al email y/o WhatsApp configurado</li>
+            <li>Verificar que el contenido de la alerta es claro y accionable</li>
+            <li>Restaurar el stock del producto de prueba</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FASE 4 ═══════════════════ -->
+  <div class="phase" id="phase-4">
+    <div class="phase-header" onclick="togglePhase('phase-4')">
+      <div class="phase-icon" style="background:rgba(34,197,94,.12);color:#22c55e;">🎓</div>
+      <div class="phase-meta">
+        <div class="phase-name">Fase 4 — Capacitación del equipo</div>
+        <div class="phase-days">Día 3</div>
+      </div>
+      <div class="phase-badge" id="badge-phase-4">0/4</div>
+      <div class="phase-chevron">▶</div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step-item" id="step-4-1">
+        <div class="step-check" onclick="toggleStep('step-4-1')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">4.1 — Sesión de capacitación</div>
+            <div class="step-time">⏱ 45 min</div>
+          </div>
+          <div class="step-desc">Capacitar a todo el equipo que operará el sistema en el día a día.</div>
+          <ul class="step-bullets">
+            <li>Cómo registrar entradas y salidas de stock</li>
+            <li>Cómo interpretar las alertas y qué acción tomar</li>
+            <li>Cómo aprobar o rechazar una sugerencia de compra</li>
+            <li>Cómo generar reportes básicos (reporte semanal, exportar datos)</li>
+            <li>Cómo agregar un producto nuevo al inventario</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-4-2">
+        <div class="step-check" onclick="toggleStep('step-4-2')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">4.2 — Guía de usuario rápida</div>
+            <div class="step-time">⏱ 5 min</div>
+          </div>
+          <div class="step-desc">Entregar referencia rápida con los flujos más usados.</div>
+          <ul class="step-bullets">
+            <li>Flujo 1: Registrar un movimiento de stock (entrada o salida)</li>
+            <li>Flujo 2: Revisar y atender una alerta de stock bajo</li>
+            <li>Flujo 3: Aprobar una sugerencia de compra</li>
+            <li>Flujo 4: Ver el reporte de inventario semanal</li>
+            <li>Flujo 5: Exportar el inventario completo a Excel</li>
+          </ul>
+          <span class="step-resource">📄 Guía rápida de usuario (PDF)</span>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-4-3">
+        <div class="step-check" onclick="toggleStep('step-4-3')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">4.3 — Práctica en vivo</div>
+            <div class="step-time">⏱ 30 min</div>
+          </div>
+          <div class="step-desc">El equipo practica con datos reales bajo supervisión.</div>
+          <ul class="step-bullets">
+            <li>Cada usuario registra al menos un movimiento real</li>
+            <li>Simular una alerta y el flujo de aprobación de compra</li>
+            <li>Generar un reporte y exportar a Excel</li>
+            <li>Resolver dudas y documentar preguntas frecuentes del equipo</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-4-4">
+        <div class="step-check" onclick="toggleStep('step-4-4')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">4.4 — Definir el campeón interno</div>
+            <div class="step-time">⏱ 5 min</div>
+          </div>
+          <div class="step-desc">Designar la persona responsable del sistema dentro de la empresa.</div>
+          <ul class="step-bullets">
+            <li>El campeón interno es el punto de contacto principal con StockWise</li>
+            <li>Es quien reporta problemas, solicita mejoras y evangeliza el uso interno</li>
+            <li>Recibirá acceso a las actualizaciones de funcionalidades antes que otros usuarios</li>
+            <li>Se le agrega al canal privado de WhatsApp con la creadora</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FASE 5 ═══════════════════ -->
+  <div class="phase" id="phase-5">
+    <div class="phase-header" onclick="togglePhase('phase-5')">
+      <div class="phase-icon" style="background:rgba(239,68,68,.12);color:#ef4444;">📈</div>
+      <div class="phase-meta">
+        <div class="phase-name">Fase 5 — Primeras 2 semanas de operación</div>
+        <div class="phase-days">Días 4–14</div>
+      </div>
+      <div class="phase-badge" id="badge-phase-5">0/4</div>
+      <div class="phase-chevron">▶</div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step-item" id="step-5-1">
+        <div class="step-check" onclick="toggleStep('step-5-1')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">5.1 — Seguimiento diario (primeros 5 días)</div>
+            <div class="step-time">⏱ 15 min/día</div>
+          </div>
+          <div class="step-desc">Check-in diario para asegurar adopción sin fricción en los primeros días críticos.</div>
+          <ul class="step-bullets">
+            <li>Check-in de 15 min por WhatsApp o email cada mañana</li>
+            <li>Resolver blockers rápidos antes de que se conviertan en fricción</li>
+            <li>Verificar que el equipo está registrando movimientos en el sistema</li>
+            <li>Ajustar umbrales de alerta si generan demasiadas o muy pocas alertas</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-5-2">
+        <div class="step-check" onclick="toggleStep('step-5-2')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">5.2 — Primera revisión de sugerencias de compra</div>
+            <div class="step-time">⏱ 20 min</div>
+          </div>
+          <div class="step-desc">Revisión crítica para calibrar el motor de IA con el contexto real del cliente.</div>
+          <ul class="step-bullets">
+            <li>Revisar las primeras órdenes de compra sugeridas por la IA</li>
+            <li>Comparar las cantidades sugeridas con lo que el equipo habría pedido manualmente</li>
+            <li>Documentar diferencias y razonarlas con el equipo</li>
+            <li>Ajustar parámetros (lead time, cantidad mínima) si las sugerencias no son útiles</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-5-3">
+        <div class="step-check" onclick="toggleStep('step-5-3')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">5.3 — Revisión de semana 1</div>
+            <div class="step-time">⏱ 30 min</div>
+          </div>
+          <div class="step-desc">Primera reunión de progreso formal del piloto.</div>
+          <ul class="step-bullets">
+            <li>Revisar métricas de la semana: alertas generadas vs atendidas</li>
+            <li>Tiempo estimado ahorrado vs semana anterior</li>
+            <li>Feedback cualitativo del equipo: qué funciona, qué genera fricción</li>
+            <li>Ajustes al sistema según lo aprendido en la primera semana</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-5-4">
+        <div class="step-check" onclick="toggleStep('step-5-4')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">5.4 — Incorporar movimientos históricos</div>
+            <div class="step-time">⏱ 1–2 h</div>
+          </div>
+          <div class="step-desc">Importar datos pasados para acelerar el aprendizaje de la IA.</div>
+          <ul class="step-bullets">
+            <li>Solicitar al cliente datos de movimientos de inventario de los últimos 3–6 meses</li>
+            <li>Limpiar y formatear los datos históricos al template de StockWise</li>
+            <li>Importar el histórico — la IA lo usará para detectar patrones de consumo más rápido</li>
+            <li>Verificar que las sugerencias de compra mejoran con el histórico cargado</li>
+          </ul>
+          <span class="step-resource">📄 Template de movimientos históricos CSV</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FASE 6 ═══════════════════ -->
+  <div class="phase" id="phase-6">
+    <div class="phase-header" onclick="togglePhase('phase-6')">
+      <div class="phase-icon" style="background:linear-gradient(135deg,rgba(34,197,94,.15),rgba(59,130,246,.15));color:#22c55e;">🏁</div>
+      <div class="phase-meta">
+        <div class="phase-name">Fase 6 — Cierre del piloto y decisión</div>
+        <div class="phase-days">Días 28–30</div>
+      </div>
+      <div class="phase-badge" id="badge-phase-6">0/4</div>
+      <div class="phase-chevron">▶</div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step-item" id="step-6-1">
+        <div class="step-check" onclick="toggleStep('step-6-1')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">6.1 — Reporte final del piloto</div>
+            <div class="step-time">⏱ 1 h (prep)</div>
+          </div>
+          <div class="step-desc">Preparar reporte comparativo antes/después para la reunión de cierre.</div>
+          <ul class="step-bullets">
+            <li>Tiempo dedicado al control de inventario: antes vs durante el piloto</li>
+            <li>Número de quiebres de stock ocurridos durante el piloto vs período anterior</li>
+            <li>Variación en el costo total de inventario (sobrestock + compras de emergencia)</li>
+            <li>Satisfacción del equipo (NPS interno)</li>
+            <li>Alertas generadas y tasa de atención</li>
+          </ul>
+          <span class="step-resource">📄 Template reporte final del piloto</span>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-6-2">
+        <div class="step-check" onclick="toggleStep('step-6-2')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">6.2 — Reunión de cierre</div>
+            <div class="step-time">⏱ 45 min</div>
+          </div>
+          <div class="step-desc">Reunión final con el cliente para presentar resultados y proponer continuidad.</div>
+          <ul class="step-bullets">
+            <li>Presentar el reporte final del piloto con los números reales</li>
+            <li>Escuchar feedback cualitativo del equipo y del decisor</li>
+            <li>Resolver dudas finales sobre el producto o el servicio</li>
+            <li>Presentar propuesta de plan pagado con precio preferencial piloto</li>
+            <li>Explicar qué nuevas funcionalidades están en el roadmap próximo</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-6-3">
+        <div class="step-check" onclick="toggleStep('step-6-3')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">6.3 — Decisión del cliente</div>
+            <div class="step-time">⏱ —</div>
+          </div>
+          <div class="step-desc">Tres caminos posibles al cierre del piloto.</div>
+          <ul class="step-bullets">
+            <li>✅ <strong>Continuar</strong> — pasar al plan pagado con precio preferencial</li>
+            <li>⏳ <strong>Extender piloto</strong> — 15 días adicionales si necesita más evidencia</li>
+            <li>❌ <strong>No continuar</strong> — cerrar con feedback estructurado para mejorar el producto</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item" id="step-6-4">
+        <div class="step-check" onclick="toggleStep('step-6-4')"><span class="step-check-icon">✓</span></div>
+        <div class="step-content">
+          <div class="step-header">
+            <div class="step-title">6.4 — Migración a plan pagado</div>
+            <div class="step-time">⏱ 30 min</div>
+          </div>
+          <div class="step-desc">Si el cliente decide continuar, activar el plan pagado sin interrupción del servicio.</div>
+          <ul class="step-bullets">
+            <li>Configurar la facturación y emitir primera boleta/factura</li>
+            <li>Activar el plan correspondiente según el volumen de SKUs y usuarios</li>
+            <li>Incorporar usuarios adicionales si el plan lo permite</li>
+            <li>Acordar el siguiente check-in (al mes 2 y al mes 3)</li>
+            <li>Invitar al cliente a dejar un testimonio o caso de éxito</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <button class="ob-reset-btn" onclick="resetProgress()">🗑 Reiniciar progreso</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const STORAGE_KEY = 'ob_stockwise_v1';
+  const TOTAL_STEPS = 24;
+
+  // Map phase-id → step ids
+  const PHASES = {
+    'phase-1': ['step-1-1','step-1-2','step-1-3','step-1-4'],
+    'phase-2': ['step-2-1','step-2-2','step-2-3','step-2-4'],
+    'phase-3': ['step-3-1','step-3-2','step-3-3','step-3-4'],
+    'phase-4': ['step-4-1','step-4-2','step-4-3','step-4-4'],
+    'phase-5': ['step-5-1','step-5-2','step-5-3','step-5-4'],
+    'phase-6': ['step-6-1','step-6-2','step-6-3','step-6-4'],
+  };
+
+  // Load saved state
+  let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+  function toggleStep(id) {
+    state[id] = !state[id];
+    save();
+    renderAll();
+  }
+
+  function renderAll() {
+    let totalDone = 0;
+
+    Object.entries(PHASES).forEach(([phaseId, steps]) => {
+      let phaseDone = 0;
+      steps.forEach(stepId => {
+        const el = document.getElementById(stepId);
+        if (!el) return;
+        if (state[stepId]) { el.classList.add('done'); phaseDone++; totalDone++; }
+        else               { el.classList.remove('done'); }
+      });
+      // Update phase badge
+      const badge = document.getElementById('badge-' + phaseId);
+      if (badge) {
+        badge.textContent = `${phaseDone}/${steps.length}`;
+        badge.className = 'phase-badge' + (phaseDone === steps.length ? ' done' : '');
+      }
+    });
+
+    // Update global progress
+    const pct = Math.round((totalDone / TOTAL_STEPS) * 100);
+    document.getElementById('ob-fill').style.width = pct + '%';
+    document.getElementById('ob-pct').innerHTML = pct + '%<span>completado</span>';
+    document.getElementById('ob-step-count').textContent = `${totalDone} de ${TOTAL_STEPS} pasos completados`;
+  }
+
+  function togglePhase(id) {
+    document.getElementById(id).classList.toggle('open');
+  }
+
+  function resetProgress() {
+    if (!confirm('¿Seguro que quieres reiniciar todo el progreso?')) return;
+    state = {};
+    save();
+    renderAll();
+  }
+
+  // Initial render
+  renderAll();
+</script>
+{% endblock %}

@@ -531,6 +531,12 @@ def ensayo(request):
     return render(request, 'ensayo.html')
 
 
+def onboarding(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return redirect('/login/')
+    return render(request, 'onboarding.html')
+
+
 def crm(request):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return redirect('/login/')
