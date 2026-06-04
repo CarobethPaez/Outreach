@@ -101,6 +101,7 @@ def campana_detalle(request, pk):
         'prospectos': prospectos,
         'emails_aprobados_no_enviados': emails_aprobados_no_enviados,
         'estados_prospecto': Prospecto.ESTADOS,
+        'estados_respuesta': Prospecto.ESTADOS_RESPUESTA,
         'canales_prospecto': Prospecto.CANALES,
         'filtro_canal': filtro_canal,
         'hay_no_contactados': hay_no_contactados,
@@ -132,6 +133,22 @@ def agregar_prospecto(request, pk):
     except Exception as e:
         messages.error(request, f'Error al agregar prospecto: {e}')
     return redirect('campana_detalle', pk=pk)
+
+
+@require_POST
+def actualizar_estado_respuesta(request, pk):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    prospecto = get_object_or_404(Prospecto, pk=pk)
+    nuevo_estado = request.POST.get('estado_respuesta', '')
+    valores_validos = [v for v, _ in Prospecto.ESTADOS_RESPUESTA]
+    if nuevo_estado not in valores_validos:
+        return JsonResponse({'error': 'Estado inválido'}, status=400)
+
+    prospecto.estado_respuesta = nuevo_estado
+    prospecto.save(update_fields=['estado_respuesta'])
+    return JsonResponse({'ok': True, 'label': prospecto.get_estado_respuesta_display()})
 
 
 @require_POST

@@ -66,6 +66,16 @@ class Prospecto(models.Model):
         ('apollo', 'Apollo'),
         ('manual', 'Manual'),
     ]
+    ESTADOS_RESPUESTA = [
+        ('sin_respuesta', 'Sin respuesta'),
+        ('interesado', 'Interesado ✓'),
+        ('no_interesado', 'No interesado'),
+        ('no_interesado_sap', 'No interesado — usa SAP'),
+        ('no_interesado_sistema', 'No interesado — tiene sistema'),
+        ('pedir_mas_info', 'Pidió más información'),
+        ('agendar_demo', 'Quiere demo'),
+        ('no_responde', 'No responde'),
+    ]
 
     campana = models.ForeignKey(Campana, on_delete=models.CASCADE, related_name='prospectos')
     nombre = models.CharField(max_length=100)
@@ -81,6 +91,10 @@ class Prospecto(models.Model):
     canal_contacto = models.CharField(max_length=20, choices=CANALES, blank=True, default='')
     contactado = models.BooleanField(default=False)
     fuente = models.CharField(max_length=20, choices=FUENTES, default='apollo')
+    estado_respuesta = models.CharField(
+        max_length=30, choices=ESTADOS_RESPUESTA, default='sin_respuesta',
+        verbose_name='Estado respuesta'
+    )
     instantly_lead_id = models.CharField(max_length=200, blank=True)
     creado = models.DateTimeField(auto_now_add=True)
 

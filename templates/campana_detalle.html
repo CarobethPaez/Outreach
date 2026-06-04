@@ -109,12 +109,13 @@
         <th>Canal contacto</th>
         <th>Email</th>
         <th>Estado email</th>
+        <th>Respuesta</th>
         <th>Email IA</th>
       </tr>
     </thead>
     <tbody>
       {% for p in prospectos %}
-      <tr {% if p.contactado %}style="background:rgba(34,197,94,.06);"{% endif %}>
+      <tr class="fila-respuesta fila-resp-{{ p.estado_respuesta }}" data-prospecto-id="{{ p.pk }}">
         <td>
           {% if p.contactado %}
           <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:6px;vertical-align:middle;" title="Contactado"></span>
@@ -145,6 +146,14 @@
           ">{{ p.get_estado_display }}</span>
         </td>
         <td>
+          <select class="select-estado-respuesta form-control" style="min-width:180px;font-size:12px;padding:4px 8px;"
+            data-id="{{ p.pk }}" onchange="cambiarEstadoRespuesta(this)">
+            {% for val, label in estados_respuesta %}
+            <option value="{{ val }}" {% if p.estado_respuesta == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
           {% if p.email_generado %}
           <button class="btn btn-secondary btn-sm"
             onclick="abrirModal({{ p.email_generado.pk }}, '{{ p.nombre_completo|escapejs }}', '{{ p.email_generado.asunto|escapejs }}', '{{ p.email_generado.cuerpo|escapejs }}', {{ p.email_generado.aprobado|yesno:'true,false' }})">
@@ -157,7 +166,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="7" class="text-muted" style="text-align:center; padding:28px;">
+        <td colspan="8" class="text-muted" style="text-align:center; padding:28px;">
           Sin prospectos. Importa un CSV de Apollo o agrega uno manualmente.
         </td>
       </tr>
@@ -297,6 +306,29 @@
 
 {% endblock %}
 
+{% block extra_css %}
+<style>
+  /* Colores de fila según estado_respuesta */
+  .fila-resp-interesado,
+  .fila-resp-agendar_demo     { background: rgba(34,197,94,.10) !important; }
+  .fila-resp-no_interesado,
+  .fila-resp-no_interesado_sap,
+  .fila-resp-no_interesado_sistema { background: rgba(239,68,68,.08) !important; }
+  .fila-resp-sin_respuesta,
+  .fila-resp-no_responde      { background: rgba(156,163,175,.06) !important; }
+  .fila-resp-pedir_mas_info   { background: rgba(234,179,8,.10) !important; }
+
+  .select-estado-respuesta {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px;
+    color: inherit;
+    cursor: pointer;
+  }
+  .select-estado-respuesta:focus { outline: none; border-color: #7c6cfc; }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
   let emailActualId = null;
@@ -427,6 +459,33 @@
 
   document.getElementById('modal-email').addEventListener('click', function(e) {
     if (e.target === this) cerrarModal();
+  });
+
+  async function cambiarEstadoRespuesta(select) {
+    const id = select.dataset.id;
+    const estado = select.value;
+    const fd = new FormData();
+    fd.append('estado_respuesta', estado);
+    const r = await fetch(`/prospectos/${id}/estado-respuesta/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')},
+      body: fd,
+    });
+    if (r.ok) {
+      const fila = select.closest('tr');
+      // Quitar clases de color anteriores y aplicar la nueva
+      fila.className = fila.className.replace(/\bfila-resp-\S+/g, '').trim();
+      fila.classList.add('fila-respuesta', `fila-resp-${estado}`);
+    } else {
+      alert('Error al guardar el estado.');
+      select.value = select.dataset.prev || select.value;
+    }
+  }
+
+  // Guardar valor previo para rollback en caso de error
+  document.querySelectorAll('.select-estado-respuesta').forEach(s => {
+    s.dataset.prev = s.value;
+    s.addEventListener('change', () => { s.dataset.prev = s.value; });
   });
 
   // Email opcional cuando canal es LinkedIn o RRSS
