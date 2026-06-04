@@ -22,6 +22,7 @@ urlpatterns = [
     path('deck/', views.deck, name='deck'),
     path('ensayo/', views.ensayo, name='ensayo'),
     path('onboarding/', views.onboarding, name='onboarding'),
+    path('test-instantly/', views.test_instantly, name='test_instantly'),
     path('login/', LoginView.as_view(template_name='login.html'), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
 ]

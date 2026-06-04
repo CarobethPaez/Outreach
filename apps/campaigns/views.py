@@ -552,6 +552,48 @@ def sincronizar_respuestas(request, pk):
     return JsonResponse({'procesados': procesados})
 
 
+def test_instantly(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return redirect('/login/')
+
+    key = settings.INSTANTLY_API_KEY or ''
+    key_preview = f"{key[:10]}...{key[-10:]}" if len(key) >= 20 else f"[muy corta: {len(key)} chars]"
+    key_len = len(key)
+    key_has_spaces = key != key.strip()
+
+    try:
+        resp = requests.get(
+            'https://api.instantly.ai/api/v2/campaigns',
+            headers={
+                'Authorization': f'Bearer {key}',
+                'Content-Type': 'application/json',
+            },
+            timeout=10,
+        )
+        status_code = resp.status_code
+        try:
+            body = resp.json()
+        except Exception:
+            body = resp.text
+    except Exception as e:
+        status_code = None
+        body = str(e)
+
+    lines = [
+        '=== Diagnóstico Instantly API ===',
+        '',
+        f'KEY primeros/últimos 10 chars : {key_preview}',
+        f'KEY longitud total            : {key_len} caracteres',
+        f'KEY tiene espacios ocultos    : {"⚠️  SÍ" if key_has_spaces else "No"}',
+        '',
+        f'Status HTTP                  : {status_code}',
+        f'Respuesta                    :',
+        json.dumps(body, indent=2, ensure_ascii=False) if isinstance(body, (dict, list)) else str(body),
+    ]
+
+    return JsonResponse({'diagnostico': '\n'.join(lines), 'status_code': status_code, 'body': body})
+
+
 def deck(request):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return redirect('/login/')
