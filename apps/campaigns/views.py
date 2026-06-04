@@ -438,16 +438,15 @@ def _crear_lead_instantly(prospecto, email_generado, campana):
         'Content-Type': 'application/json',
     }
     payload = {
-        'api_key': settings.INSTANTLY_API_KEY,
         'campaign_id': campana.instantly_campaign_id,
         'skip_if_in_workspace': True,
         'skip_if_in_campaign': True,
         'leads': [
             {
                 'email': prospecto.email,
-                'first_name': prospecto.nombre,
-                'last_name': prospecto.apellido,
-                'company_name': prospecto.empresa,
+                'firstName': prospecto.nombre,
+                'lastName': prospecto.apellido,
+                'companyName': prospecto.empresa,
                 'personalization': email_generado.cuerpo,
                 'custom_variables': {
                     'asunto_personalizado': email_generado.asunto,
@@ -509,17 +508,8 @@ def _crear_campana_instantly(campana):
     campana.instantly_campaign_id = data['id']
     campana.save(update_fields=['instantly_campaign_id'])
 
-    # Asociar cuenta de envío a la campaña recién creada
-    mail_payload = {'email': settings.INSTANTLY_EMAIL}
-    logger.info(f'[Instantly] POST /v2/campaigns/{campana.instantly_campaign_id}/mailaccounts — email={settings.INSTANTLY_EMAIL}')
-    resp_mail = requests.post(
-        f'https://api.instantly.ai/api/v2/campaigns/{campana.instantly_campaign_id}/mailaccounts',
-        headers=headers,
-        json=mail_payload,
-        timeout=15,
-    )
-    logger.info(f'[Instantly] Respuesta mailaccounts: status={resp_mail.status_code} body={resp_mail.text[:300]}')
-    resp_mail.raise_for_status()
+    # Nota: la cuenta de email se asigna desde el dashboard de Instantly,
+    # no existe endpoint v2 para hacerlo via API.
 
 
 def campana_emails(request, pk):
