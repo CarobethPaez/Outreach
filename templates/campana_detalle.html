@@ -39,6 +39,31 @@
   </div>
 </div>
 
+<!-- Instantly Campaign ID -->
+<div class="table-wrap" style="margin-bottom:20px; padding:16px 20px;">
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <label style="font-size:13px; color:var(--text-muted); white-space:nowrap;">
+      🔗 Instantly Campaign ID
+    </label>
+    <input type="text" id="instantly-campaign-id-input"
+      value="{{ campana.instantly_campaign_id }}"
+      placeholder="Pega aquí el ID de la campaña en Instantly"
+      style="flex:1; min-width:260px; max-width:480px; font-family:monospace; font-size:13px;">
+    <button class="btn btn-secondary" onclick="guardarCampaignId()" id="btn-guardar-campaign-id">
+      💾 Guardar ID
+    </button>
+    {% if not campana.instantly_campaign_id %}
+    <span id="campaign-id-warning" style="font-size:12px; color:#f59e0b;">
+      ⚠️ Sin Campaign ID — el botón "Enviar a Instantly" no estará disponible hasta que lo ingreses.
+    </span>
+    {% else %}
+    <span id="campaign-id-warning" style="font-size:12px; color:#22c55e; display:none;">
+      ✓ ID guardado
+    </span>
+    {% endif %}
+  </div>
+</div>
+
 <!-- Acciones -->
 <div class="flex gap-2 flex-wrap" style="margin-bottom:24px;">
   <!-- Importar CSV -->
@@ -64,7 +89,7 @@
   </button>
 
   <!-- Enviar a Instantly -->
-  {% if campana.emails_generados > 0 %}
+  {% if campana.emails_generados > 0 and campana.instantly_campaign_id %}
   <button class="btn btn-green" onclick="enviarInstantly()">
     🚀 Enviar a Instantly{% if emails_aprobados_no_enviados > 0 %} ({{ emails_aprobados_no_enviados }}){% endif %}
   </button>
@@ -509,6 +534,38 @@
     } else {
       alert('Error al guardar el estado.');
       select.value = select.dataset.prev || select.value;
+    }
+  }
+
+  async function guardarCampaignId() {
+    const input = document.getElementById('instantly-campaign-id-input');
+    const btn = document.getElementById('btn-guardar-campaign-id');
+    const warning = document.getElementById('campaign-id-warning');
+    const valor = input.value.trim();
+
+    btn.textContent = '⏳ Guardando…';
+    btn.disabled = true;
+
+    const fd = new FormData();
+    fd.append('instantly_campaign_id', valor);
+    const r = await fetch(`/campanas/${campanaId}/campaign-id/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')},
+      body: fd,
+    });
+
+    btn.textContent = '💾 Guardar ID';
+    btn.disabled = false;
+
+    if (r.ok) {
+      warning.textContent = valor ? '✓ ID guardado' : '⚠️ Sin Campaign ID — el botón "Enviar a Instantly" no estará disponible hasta que lo ingreses.';
+      warning.style.color = valor ? '#22c55e' : '#f59e0b';
+      warning.style.display = '';
+      // Mostrar/ocultar botón Enviar a Instantly según si hay ID
+      const btnEnviar = document.querySelector('.btn-green');
+      if (btnEnviar) btnEnviar.style.display = valor ? '' : 'none';
+    } else {
+      alert('Error al guardar el Campaign ID.');
     }
   }
 

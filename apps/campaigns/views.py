@@ -135,6 +135,18 @@ def agregar_prospecto(request, pk):
     return redirect('campana_detalle', pk=pk)
 
 
+@require_POST
+def guardar_campaign_id(request, pk):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    campana = get_object_or_404(Campana, pk=pk)
+    campaign_id = request.POST.get('instantly_campaign_id', '').strip()
+    campana.instantly_campaign_id = campaign_id
+    campana.save(update_fields=['instantly_campaign_id'])
+    return JsonResponse({'ok': True, 'instantly_campaign_id': campana.instantly_campaign_id})
+
+
 def eliminar_prospecto(request, campana_pk, prospecto_pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return JsonResponse({'error': 'Sin permiso'}, status=403)
