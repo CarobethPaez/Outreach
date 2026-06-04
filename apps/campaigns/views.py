@@ -432,15 +432,22 @@ def _crear_lead_instantly(prospecto, email_generado, campana):
         'Content-Type': 'application/json',
     }
     payload = {
+        'api_key': settings.INSTANTLY_API_KEY,
         'campaign_id': campana.instantly_campaign_id,
-        'email': prospecto.email,
-        'first_name': prospecto.nombre,
-        'last_name': prospecto.apellido,
-        'company_name': prospecto.empresa,
-        'personalization': email_generado.cuerpo,
-        'custom_variables': {
-            'asunto_personalizado': email_generado.asunto,
-        },
+        'skip_if_in_workspace': True,
+        'skip_if_in_campaign': True,
+        'leads': [
+            {
+                'email': prospecto.email,
+                'first_name': prospecto.nombre,
+                'last_name': prospecto.apellido,
+                'company_name': prospecto.empresa,
+                'personalization': email_generado.cuerpo,
+                'custom_variables': {
+                    'asunto_personalizado': email_generado.asunto,
+                },
+            }
+        ],
     }
     resp = requests.post(
         'https://api.instantly.ai/api/v2/leads',
@@ -450,8 +457,10 @@ def _crear_lead_instantly(prospecto, email_generado, campana):
     )
     resp.raise_for_status()
     data = resp.json()
-    if data.get('id'):
-        prospecto.instantly_lead_id = data['id']
+    # v2 puede devolver lista o dict con clave 'leads'
+    leads_creados = data if isinstance(data, list) else data.get('leads', [])
+    if leads_creados and isinstance(leads_creados, list) and leads_creados[0].get('id'):
+        prospecto.instantly_lead_id = leads_creados[0]['id']
         prospecto.save(update_fields=['instantly_lead_id'])
 
 
