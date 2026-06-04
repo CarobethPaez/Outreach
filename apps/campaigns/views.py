@@ -456,12 +456,14 @@ def _crear_lead_instantly(prospecto, email_generado, campana):
     }
     logger.info(f'[Instantly] POST /v2/leads — email={prospecto.email} campaign_id={campana.instantly_campaign_id}')
     logger.info(f'[Instantly] Payload enviado a Instantly: {json.dumps(payload, indent=2)}')
+    print(f'PAYLOAD_DEBUG: {json.dumps(payload, indent=2)}', flush=True)
     resp = requests.post(
         'https://api.instantly.ai/api/v2/leads',
         headers=headers,
         json=payload,
         timeout=15,
     )
+    print(f'INSTANTLY_RESPONSE: status={resp.status_code} body={resp.text}', flush=True)
     logger.info(f'[Instantly] Respuesta leads: status={resp.status_code} body={resp.text[:1000]}')
     if resp.status_code != 200:
         error_detail = resp.text
