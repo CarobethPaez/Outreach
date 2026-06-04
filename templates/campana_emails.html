@@ -114,10 +114,18 @@
   }
 
   async function aprobarTodos() {
-    const btns = document.querySelectorAll('[onclick^="aprobarUno"]');
-    log(`⏳ Aprobando ${btns.length} emails…`);
-    for (const btn of btns) btn.click();
-    log('✅ Listo.');
+    log('⏳ Aprobando todos los emails en el servidor…');
+    const r = await fetch(`/campanas/${campanaId}/aprobar-todos/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    });
+    if (r.ok) {
+      const d = await r.json();
+      log(`✅ Se aprobaron ${d.aprobados} emails.`);
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      log('❌ Error al aprobar los correos.');
+    }
   }
 
   async function enviarAprobados() {

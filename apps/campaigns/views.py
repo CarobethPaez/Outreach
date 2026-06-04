@@ -27,9 +27,8 @@ def _superuser_required(view_func):
     return wrapper
 
 
+@_superuser_required
 def dashboard(request):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
 
     campanas = Campana.objects.all().order_by('-creada')
 
@@ -54,9 +53,8 @@ def dashboard(request):
     })
 
 
+@_superuser_required
 def campana_nueva(request):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
 
     if request.method == 'POST':
         campana = Campana.objects.create(
@@ -76,9 +74,8 @@ def campana_nueva(request):
     })
 
 
+@_superuser_required
 def campana_detalle(request, pk):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
 
     campana = get_object_or_404(Campana, pk=pk)
     prospectos = campana.prospectos.select_related('email_generado').order_by('-creado')
@@ -343,7 +340,7 @@ def _generar_email_claude(prospecto, campana):
         )
 
     resp_cuerpo = cliente.messages.create(
-        model='claude-sonnet-4-5',
+        model='claude-3-5-sonnet-latest',
         max_tokens=400,
         messages=[{'role': 'user', 'content': prompt_cuerpo}],
     )
@@ -355,7 +352,7 @@ def _generar_email_claude(prospecto, campana):
         f"que parezca escrito por una persona real) para este cuerpo:\n\n{cuerpo}"
     )
     resp_asunto = cliente.messages.create(
-        model='claude-sonnet-4-5',
+        model='claude-3-5-sonnet-latest',
         max_tokens=50,
         messages=[{'role': 'user', 'content': prompt_asunto}],
     )
@@ -390,6 +387,38 @@ def aprobar_email(request, pk):
 
 
 @require_POST
+def aprobar_todos_emails(request, pk):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    
+    campana = get_object_or_404(Campana, pk=pk)
+    
+    # Approve all pending generated emails for this campaign
+    emails = EmailGenerado.objects.filter(
+        prospecto__campana=campana,
+        aprobado=False,
+        enviado_a_instantly=False
+    )
+    count = emails.count()
+    emails.update(aprobado=True)
+    
+    # Update status of these prospects to approved
+    prospectos = Prospecto.objects.filter(
+        campana=campana,
+        estado='email_generado'
+    )
+    prospectos.update(estado='aprobado')
+    
+    # Sync the count on campaign
+    campana.emails_generados = campana.prospectos.filter(
+        estado__in=['email_generado', 'aprobado', 'enviado', 'respondio', 'interesado']
+    ).count()
+    campana.save(update_fields=['emails_generados'])
+    
+    return JsonResponse({'ok': True, 'aprobados': count})
+
+
+@require_POST
 def editar_email(request, pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return JsonResponse({'error': 'Sin permiso'}, status=403)
@@ -408,6 +437,16 @@ def enviar_a_instantly(request, pk):
         return JsonResponse({'error': 'Sin permiso'}, status=403)
 
     campana = get_object_or_404(Campana, pk=pk)
+
+    if not campana.instantly_campaign_id:
+        try:
+            logger.info('[Instantly] Sin campaign_id — creando campaña en Instantly…')
+            _crear_campana_instantly(campana)
+            logger.info(f'[Instantly] Campaña creada. instantly_campaign_id="{campana.instantly_campaign_id}"')
+        except Exception as e:
+            logger.error(f'Error al crear campaña en Instantly: {e}')
+            return JsonResponse({'enviados': 0, 'errores': [f'No se pudo crear la campaña en Instantly: {str(e)}']})
+
     emails_pendientes = EmailGenerado.objects.filter(
         prospecto__campana=campana,
         aprobado=True,
@@ -416,38 +455,27 @@ def enviar_a_instantly(request, pk):
 
     enviados = 0
     errores = []
+    valid_emails = []
 
     for email in emails_pendientes:
         if not email.prospecto.email or not email.prospecto.email.strip():
             logger.error(f'[Instantly] Prospecto sin email: {email.prospecto.nombre_completo} (id={email.prospecto.pk}) — omitido')
             errores.append(f'{email.prospecto.nombre_completo}: sin email')
             continue
-        try:
-            _crear_lead_instantly(email.prospecto, email, campana)
-            email.enviado_a_instantly = True
-            email.save(update_fields=['enviado_a_instantly'])
-            email.prospecto.estado = 'enviado'
-            email.prospecto.save(update_fields=['estado'])
-            enviados += 1
-        except Exception as e:
-            logger.error(f'Error enviando a Instantly {email.prospecto.email}: {e}')
-            errores.append(f'{email.prospecto.email}: {str(e)}')
+        valid_emails.append(email)
 
-    campana.emails_enviados = campana.prospectos.filter(estado='enviado').count()
-    campana.save(update_fields=['emails_enviados'])
+    if not valid_emails:
+        return JsonResponse({'enviados': 0, 'errores': errores})
 
-    return JsonResponse({'enviados': enviados, 'errores': errores})
-
-
-def _crear_lead_instantly(prospecto, email_generado, campana):
-    logger.info(
-        f'[Instantly] campana="{campana.nombre}" instantly_campaign_id="{campana.instantly_campaign_id or "(vacío)"}"'
-    )
-
-    if not campana.instantly_campaign_id:
-        logger.info('[Instantly] Sin campaign_id — creando campaña en Instantly…')
-        _crear_campana_instantly(campana)
-        logger.info(f'[Instantly] Campaña creada. instantly_campaign_id="{campana.instantly_campaign_id}"')
+    # Preparar lote de leads para envío masivo
+    leads_payload = []
+    for email in valid_emails:
+        leads_payload.append({
+            'email': email.prospecto.email.strip(),
+            'first_name': email.prospecto.nombre or '',
+            'last_name': email.prospecto.apellido or '',
+            'company_name': email.prospecto.empresa or '',
+        })
 
     headers = {
         'Authorization': f'Bearer {settings.INSTANTLY_API_KEY}',
@@ -457,36 +485,55 @@ def _crear_lead_instantly(prospecto, email_generado, campana):
         'campaign_id': campana.instantly_campaign_id,
         'skip_if_in_workspace': True,
         'skip_if_in_campaign': True,
-        'leads': [
-            {
-                'email': prospecto.email,
-                'first_name': prospecto.nombre or '',
-                'last_name': prospecto.apellido or '',
-                'company_name': prospecto.empresa or '',
-            }
-        ],
+        'leads': leads_payload,
     }
-    logger.info(f'[Instantly] POST /v2/leads — email={prospecto.email} campaign_id={campana.instantly_campaign_id}')
-    logger.info(f'[Instantly] Payload enviado a Instantly: {json.dumps(payload, indent=2)}')
-    print(f'PAYLOAD_DEBUG: {json.dumps(payload, indent=2)}', flush=True)
-    resp = requests.post(
-        'https://api.instantly.ai/api/v2/leads',
-        headers=headers,
-        json=payload,
-        timeout=15,
-    )
-    print(f'INSTANTLY_RESPONSE: status={resp.status_code} body={resp.text}', flush=True)
-    logger.info(f'[Instantly] Respuesta leads: status={resp.status_code} body={resp.text[:1000]}')
-    if resp.status_code != 200:
-        error_detail = resp.text
-        logger.error(f'[Instantly] Error {resp.status_code}: {error_detail}')
-        raise Exception(f'Instantly {resp.status_code}: {error_detail}')
-    data = resp.json()
-    # v2 puede devolver lista o dict con clave 'leads'
-    leads_creados = data if isinstance(data, list) else data.get('leads', [])
-    if leads_creados and isinstance(leads_creados, list) and leads_creados[0].get('id'):
-        prospecto.instantly_lead_id = leads_creados[0]['id']
-        prospecto.save(update_fields=['instantly_lead_id'])
+
+    logger.info(f'[Instantly] POST /v2/leads (Batch) — enviando {len(leads_payload)} leads a la campaña {campana.instantly_campaign_id}')
+    try:
+        resp = requests.post(
+            'https://api.instantly.ai/api/v2/leads',
+            headers=headers,
+            json=payload,
+            timeout=30,
+        )
+        logger.info(f'[Instantly] Respuesta leads: status={resp.status_code}')
+        if resp.status_code != 200:
+            error_detail = resp.text
+            logger.error(f'[Instantly] Error {resp.status_code}: {error_detail}')
+            raise Exception(f'Instantly {resp.status_code}: {error_detail}')
+
+        data = resp.json()
+        leads_creados = data if isinstance(data, list) else data.get('leads', [])
+
+        # Mapear IDs de los leads por email
+        lead_id_map = {}
+        for lc in leads_creados:
+            email_addr = lc.get('email')
+            lead_id = lc.get('id')
+            if email_addr and lead_id:
+                lead_id_map[email_addr.lower().strip()] = lead_id
+
+        # Actualizar base de datos
+        for email in valid_emails:
+            email_key = email.prospecto.email.lower().strip()
+            if email_key in lead_id_map:
+                email.prospecto.instantly_lead_id = lead_id_map[email_key]
+
+            email.enviado_a_instantly = True
+            email.save(update_fields=['enviado_a_instantly'])
+
+            email.prospecto.estado = 'enviado'
+            email.prospecto.save(update_fields=['estado', 'instantly_lead_id'])
+            enviados += 1
+
+    except Exception as e:
+        logger.error(f'Error enviando lote a Instantly: {e}')
+        errores.append(f'Error en envío por lotes: {str(e)}')
+
+    campana.emails_enviados = campana.prospectos.filter(estado='enviado').count()
+    campana.save(update_fields=['emails_enviados'])
+
+    return JsonResponse({'enviados': enviados, 'errores': errores})
 
 
 def _crear_campana_instantly(campana):
@@ -530,9 +577,8 @@ def _crear_campana_instantly(campana):
     # no existe endpoint v2 para hacerlo via API.
 
 
+@_superuser_required
 def campana_emails(request, pk):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
 
     campana = get_object_or_404(Campana, pk=pk)
     filtro = request.GET.get('filtro', '')
@@ -555,9 +601,8 @@ def campana_emails(request, pk):
     })
 
 
+@_superuser_required
 def campana_respuestas(request, pk):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
 
     campana = get_object_or_404(Campana, pk=pk)
     respondieron = campana.prospectos.filter(
@@ -606,9 +651,8 @@ def sincronizar_respuestas(request, pk):
     return JsonResponse({'procesados': procesados})
 
 
+@_superuser_required
 def test_instantly(request):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
 
     key = settings.INSTANTLY_API_KEY or ''
     key_preview = f"{key[:10]}...{key[-10:]}" if len(key) >= 20 else f"[muy corta: {len(key)} chars]"
@@ -648,27 +692,23 @@ def test_instantly(request):
     return JsonResponse({'diagnostico': '\n'.join(lines), 'status_code': status_code, 'body': body})
 
 
+@_superuser_required
 def deck(request):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
     return render(request, 'deck.html')
 
 
+@_superuser_required
 def ensayo(request):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
     return render(request, 'ensayo.html')
 
 
+@_superuser_required
 def onboarding(request):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
     return render(request, 'onboarding.html')
 
 
+@_superuser_required
 def crm(request):
-    if not request.user.is_authenticated or not request.user.is_superuser:
-        return redirect('/login/')
 
     entradas = ProspectoCRM.objects.select_related(
         'prospecto', 'prospecto__campana'
