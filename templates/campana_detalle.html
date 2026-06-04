@@ -111,6 +111,7 @@
         <th>Estado email</th>
         <th>Respuesta</th>
         <th>Email IA</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -163,10 +164,15 @@
           <span class="text-muted text-sm">—</span>
           {% endif %}
         </td>
+        <td>
+          <button class="btn-eliminar-prospecto" title="Eliminar prospecto"
+            data-id="{{ p.pk }}" data-nombre="{{ p.nombre_completo|escapejs }}"
+            onclick="pedirConfirmacionEliminar(this)">🗑️</button>
+        </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="8" class="text-muted" style="text-align:center; padding:28px;">
+        <td colspan="9" class="text-muted" style="text-align:center; padding:28px;">
           Sin prospectos. Importa un CSV de Apollo o agrega uno manualmente.
         </td>
       </tr>
@@ -284,6 +290,18 @@
   </div>
 </div>
 
+<!-- Modal confirmar eliminar prospecto -->
+<div class="modal-overlay" id="modal-eliminar">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="color:#ef4444;">Eliminar prospecto</h3>
+    <p class="text-sm" style="margin:12px 0 20px;" id="modal-eliminar-texto"></p>
+    <div class="modal-actions">
+      <button class="btn" style="background:#ef4444;border-color:#ef4444;color:#fff;" id="btn-confirmar-eliminar" onclick="confirmarEliminar()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-eliminar').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal email -->
 <div class="modal-overlay" id="modal-email">
   <div class="modal">
@@ -317,6 +335,18 @@
   .fila-resp-sin_respuesta,
   .fila-resp-no_responde      { background: rgba(156,163,175,.06) !important; }
   .fila-resp-pedir_mas_info   { background: rgba(234,179,8,.10) !important; }
+
+  .btn-eliminar-prospecto {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    opacity: 0.4;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: opacity .15s, background .15s;
+  }
+  .btn-eliminar-prospecto:hover { opacity: 1; background: rgba(239,68,68,.15); }
 
   .select-estado-respuesta {
     background: transparent;
@@ -481,6 +511,48 @@
       select.value = select.dataset.prev || select.value;
     }
   }
+
+  let prospectoAEliminarId = null;
+
+  function pedirConfirmacionEliminar(btn) {
+    prospectoAEliminarId = btn.dataset.id;
+    const nombre = btn.dataset.nombre;
+    document.getElementById('modal-eliminar-texto').textContent =
+      `¿Eliminar a ${nombre} de esta campaña? Esta acción no se puede deshacer.`;
+    document.getElementById('modal-eliminar').classList.add('open');
+  }
+
+  async function confirmarEliminar() {
+    if (!prospectoAEliminarId) return;
+    document.getElementById('btn-confirmar-eliminar').textContent = 'Eliminando…';
+    document.getElementById('btn-confirmar-eliminar').disabled = true;
+
+    const r = await fetch(`/campanas/${campanaId}/prospectos/${prospectoAEliminarId}/`, {
+      method: 'DELETE',
+      headers: {'X-CSRFToken': getCookie('csrftoken')},
+    });
+
+    document.getElementById('btn-confirmar-eliminar').textContent = 'Eliminar';
+    document.getElementById('btn-confirmar-eliminar').disabled = false;
+    document.getElementById('modal-eliminar').classList.remove('open');
+
+    if (r.ok) {
+      const d = await r.json();
+      // Quitar la fila de la tabla
+      const fila = document.querySelector(`tr[data-prospecto-id="${prospectoAEliminarId}"]`);
+      if (fila) fila.remove();
+      // Actualizar contador en el heading
+      const contador = document.querySelector('h2 .text-muted.text-sm');
+      if (contador) contador.textContent = `(${d.total_prospectos})`;
+      prospectoAEliminarId = null;
+    } else {
+      alert('Error al eliminar el prospecto.');
+    }
+  }
+
+  document.getElementById('modal-eliminar').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
 
   // Guardar valor previo para rollback en caso de error
   document.querySelectorAll('.select-estado-respuesta').forEach(s => {

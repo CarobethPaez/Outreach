@@ -15,6 +15,7 @@ urlpatterns = [
     path('campanas/<int:pk>/agregar-prospecto/', views.agregar_prospecto, name='agregar_prospecto'),
     path('campanas/<int:pk>/marcar-contactados/', views.marcar_contactados, name='marcar_contactados'),
     path('prospectos/<int:pk>/estado-respuesta/', views.actualizar_estado_respuesta, name='actualizar_estado_respuesta'),
+    path('campanas/<int:campana_pk>/prospectos/<int:prospecto_pk>/', views.eliminar_prospecto, name='eliminar_prospecto'),
     path('emails/<int:pk>/aprobar/', views.aprobar_email, name='aprobar_email'),
     path('emails/<int:pk>/editar/', views.editar_email, name='editar_email'),
     path('crm/', views.crm, name='crm'),

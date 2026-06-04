@@ -135,6 +135,22 @@ def agregar_prospecto(request, pk):
     return redirect('campana_detalle', pk=pk)
 
 
+def eliminar_prospecto(request, campana_pk, prospecto_pk):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    prospecto = get_object_or_404(Prospecto, pk=prospecto_pk, campana__pk=campana_pk)
+    campana = prospecto.campana
+    prospecto.delete()
+
+    campana.total_prospectos = campana.prospectos.count()
+    campana.save(update_fields=['total_prospectos'])
+
+    return JsonResponse({'ok': True, 'total_prospectos': campana.total_prospectos})
+
+
 @require_POST
 def actualizar_estado_respuesta(request, pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
