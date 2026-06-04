@@ -62,7 +62,17 @@
     <tbody>
       {% for c in campanas %}
       <tr>
-        <td><strong>{{ c.nombre }}</strong></td>
+        <td>
+          <div class="campaign-name-container" data-id="{{ c.pk }}">
+            <span class="campaign-name-text"><strong>{{ c.nombre }}</strong></span>
+            <button class="btn-edit-name" title="Editar nombre">✏️</button>
+            <div class="campaign-name-input-wrapper" style="display:none;">
+              <input type="text" class="campaign-name-input" value="{{ c.nombre }}">
+              <button class="btn btn-green btn-sm btn-save-name">✓</button>
+              <button class="btn btn-secondary btn-sm btn-cancel-name">✕</button>
+            </div>
+          </div>
+        </td>
         <td><span class="badge badge-{{ c.producto }}">{{ c.get_producto_display }}</span></td>
         <td><span class="badge badge-{{ c.estado }}">{{ c.get_estado_display }}</span></td>
         <td>{{ c.total_prospectos }}</td>
@@ -84,3 +94,153 @@
   </table>
 </div>
 {% endblock %}
+
+{% block extra_head %}
+<style>
+  .campaign-name-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-edit-name {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  .campaign-name-container:hover .btn-edit-name {
+    opacity: 0.6;
+  }
+  .btn-edit-name:hover {
+    opacity: 1 !important;
+    transform: scale(1.15);
+  }
+  .campaign-name-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+  .campaign-name-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13.5px;
+    flex: 1;
+    max-width: 320px;
+  }
+  .campaign-name-input:focus {
+    border-color: var(--accent);
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const containers = document.querySelectorAll('.campaign-name-container');
+
+    containers.forEach(container => {
+      const id = container.dataset.id;
+      const textSpan = container.querySelector('.campaign-name-text');
+      const editBtn = container.querySelector('.btn-edit-name');
+      const inputWrapper = container.querySelector('.campaign-name-input-wrapper');
+      const input = container.querySelector('.campaign-name-input');
+      const saveBtn = container.querySelector('.btn-save-name');
+      const cancelBtn = container.querySelector('.btn-cancel-name');
+
+      function startEdit() {
+        textSpan.style.display = 'none';
+        editBtn.style.display = 'none';
+        inputWrapper.style.display = 'flex';
+        input.focus();
+        input.select();
+      }
+
+      function cancelEdit() {
+        input.value = textSpan.textContent.trim();
+        textSpan.style.display = '';
+        editBtn.style.display = '';
+        inputWrapper.style.display = 'none';
+      }
+
+      async function saveEdit() {
+        const nuevoNombre = input.value.trim();
+        if (!nuevoNombre) {
+          alert('El nombre no puede estar vacío.');
+          return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳';
+
+        try {
+          const r = await fetch(`/campanas/${id}/editar-nombre/`, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCookie('csrftoken'),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ nombre: nuevoNombre })
+          });
+
+          if (r.ok) {
+            const data = await r.json();
+            textSpan.querySelector('strong').textContent = data.nombre;
+            cancelEdit();
+          } else {
+            const data = await r.json();
+            alert('Error: ' + (data.error || 'No se pudo guardar el nombre.'));
+            saveBtn.disabled = false;
+            saveBtn.textContent = '✓';
+          }
+        } catch (e) {
+          alert('Error de conexión.');
+          saveBtn.disabled = false;
+          saveBtn.textContent = '✓';
+        }
+      }
+
+      editBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startEdit();
+      });
+
+      cancelBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelEdit();
+      });
+
+      saveBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        saveEdit();
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveEdit();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelEdit();
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}
+

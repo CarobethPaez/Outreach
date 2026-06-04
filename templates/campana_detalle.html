@@ -5,7 +5,15 @@
 {% block content %}
 <div class="page-heading">
   <div>
-    <h1>{{ campana.nombre }}</h1>
+    <div class="campaign-detail-name-container" style="display:flex; align-items:center; gap:12px;">
+      <h1 id="campaign-title">{{ campana.nombre }}</h1>
+      <button id="btn-edit-title" class="btn-edit-name" title="Editar nombre" style="font-size: 18px; background: none; border: none; cursor: pointer; opacity: 0.5; transition: opacity 0.2s;">✏️</button>
+      <div id="campaign-title-input-wrapper" style="display:none; align-items:center; gap:8px;">
+        <input type="text" id="campaign-title-input" class="form-control" value="{{ campana.nombre }}" style="font-size:20px; font-weight:700; padding:4px 12px; width:auto; min-width:320px; background:var(--bg3); border:1px solid var(--border); color:var(--text); border-radius:8px;">
+        <button class="btn btn-green btn-save-title" style="padding: 6px 12px;">✓ Guardar</button>
+        <button class="btn btn-secondary btn-cancel-title" style="padding: 6px 12px;">✕ Cancelar</button>
+      </div>
+    </div>
     <div class="flex gap-2 items-center mt-1">
       <span class="badge badge-{{ campana.producto }}">{{ campana.get_producto_display }}</span>
       <span class="badge badge-{{ campana.estado }}">{{ campana.get_estado_display }}</span>
@@ -381,6 +389,25 @@
     cursor: pointer;
   }
   .select-estado-respuesta:focus { outline: none; border-color: #7c6cfc; }
+
+  /* Edit campaign title styles */
+  .campaign-detail-name-container:hover #btn-edit-title {
+    opacity: 0.8 !important;
+  }
+  #btn-edit-title:hover {
+    opacity: 1 !important;
+    transform: scale(1.15);
+  }
+  .btn-edit-name {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
 </style>
 {% endblock %}
 
@@ -632,5 +659,81 @@
   }
 
   canalSelect.addEventListener('change', actualizarEmailRequerido);
+
+  // Edit Campaign Name
+  const btnEditTitle = document.getElementById('btn-edit-title');
+  if (btnEditTitle) {
+    const titleEl = document.getElementById('campaign-title');
+    const inputWrapper = document.getElementById('campaign-title-input-wrapper');
+    const inputEl = document.getElementById('campaign-title-input');
+    const btnSaveTitle = document.querySelector('.btn-save-title');
+    const btnCancelTitle = document.querySelector('.btn-cancel-title');
+
+    function startEditTitle() {
+      titleEl.style.display = 'none';
+      btnEditTitle.style.display = 'none';
+      inputWrapper.style.display = 'flex';
+      inputEl.focus();
+      inputEl.select();
+    }
+
+    function cancelEditTitle() {
+      inputEl.value = titleEl.textContent.trim();
+      titleEl.style.display = '';
+      btnEditTitle.style.display = '';
+      inputWrapper.style.display = 'none';
+    }
+
+    async function saveEditTitle() {
+      const nuevoNombre = inputEl.value.trim();
+      if (!nuevoNombre) {
+        alert('El nombre no puede estar vacío.');
+        return;
+      }
+
+      btnSaveTitle.disabled = true;
+      btnSaveTitle.textContent = '⏳';
+
+      try {
+        const r = await fetch(`/campanas/${campanaId}/editar-nombre/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ nombre: nuevoNombre })
+        });
+
+        if (r.ok) {
+          const data = await r.json();
+          titleEl.textContent = data.nombre;
+          document.title = `${data.nombre} — StockWise`;
+          cancelEditTitle();
+        } else {
+          const data = await r.json();
+          alert('Error: ' + (data.error || 'No se pudo guardar el nombre.'));
+          btnSaveTitle.disabled = false;
+          btnSaveTitle.textContent = '✓ Guardar';
+        }
+      } catch (e) {
+        alert('Error de conexión.');
+        btnSaveTitle.disabled = false;
+        btnSaveTitle.textContent = '✓ Guardar';
+      }
+    }
+
+    btnEditTitle.addEventListener('click', startEditTitle);
+    btnCancelTitle.addEventListener('click', cancelEditTitle);
+    btnSaveTitle.addEventListener('click', saveEditTitle);
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveEditTitle();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEditTitle();
+      }
+    });
+  }
 </script>
 {% endblock %}

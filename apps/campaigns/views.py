@@ -144,6 +144,30 @@ def guardar_campaign_id(request, pk):
     return JsonResponse({'ok': True, 'instantly_campaign_id': campana.instantly_campaign_id})
 
 
+@require_POST
+def editar_campana_nombre(request, pk):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    campana = get_object_or_404(Campana, pk=pk)
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body)
+            nuevo_nombre = data.get('nombre', '').strip()
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
+    else:
+        nuevo_nombre = request.POST.get('nombre', '').strip()
+
+    if not nuevo_nombre:
+        return JsonResponse({'error': 'El nombre no puede estar vacío'}, status=400)
+
+    campana.nombre = nuevo_nombre
+    campana.save(update_fields=['nombre'])
+    return JsonResponse({'ok': True, 'nombre': campana.nombre})
+
+
+
 def eliminar_prospecto(request, campana_pk, prospecto_pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return JsonResponse({'error': 'Sin permiso'}, status=403)
