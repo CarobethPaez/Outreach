@@ -455,14 +455,18 @@ def _crear_lead_instantly(prospecto, email_generado, campana):
         ],
     }
     logger.info(f'[Instantly] POST /v2/leads — email={prospecto.email} campaign_id={campana.instantly_campaign_id}')
+    logger.info(f'[Instantly] Payload enviado a Instantly: {json.dumps(payload, indent=2)}')
     resp = requests.post(
         'https://api.instantly.ai/api/v2/leads',
         headers=headers,
         json=payload,
         timeout=15,
     )
-    logger.info(f'[Instantly] Respuesta leads: status={resp.status_code} body={resp.text[:300]}')
-    resp.raise_for_status()
+    logger.info(f'[Instantly] Respuesta leads: status={resp.status_code} body={resp.text[:1000]}')
+    if resp.status_code != 200:
+        error_detail = resp.text
+        logger.error(f'[Instantly] Error {resp.status_code}: {error_detail}')
+        raise Exception(f'Instantly {resp.status_code}: {error_detail}')
     data = resp.json()
     # v2 puede devolver lista o dict con clave 'leads'
     leads_creados = data if isinstance(data, list) else data.get('leads', [])
