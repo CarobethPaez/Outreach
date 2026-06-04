@@ -424,8 +424,14 @@ def enviar_a_instantly(request, pk):
 
 
 def _crear_lead_instantly(prospecto, email_generado, campana):
+    logger.info(
+        f'[Instantly] campana="{campana.nombre}" instantly_campaign_id="{campana.instantly_campaign_id or "(vacío)"}"'
+    )
+
     if not campana.instantly_campaign_id:
+        logger.info('[Instantly] Sin campaign_id — creando campaña en Instantly…')
         _crear_campana_instantly(campana)
+        logger.info(f'[Instantly] Campaña creada. instantly_campaign_id="{campana.instantly_campaign_id}"')
 
     headers = {
         'Authorization': f'Bearer {settings.INSTANTLY_API_KEY}',
@@ -449,12 +455,14 @@ def _crear_lead_instantly(prospecto, email_generado, campana):
             }
         ],
     }
+    logger.info(f'[Instantly] POST /v2/leads — email={prospecto.email} campaign_id={campana.instantly_campaign_id}')
     resp = requests.post(
         'https://api.instantly.ai/api/v2/leads',
         headers=headers,
         json=payload,
         timeout=15,
     )
+    logger.info(f'[Instantly] Respuesta leads: status={resp.status_code} body={resp.text[:300]}')
     resp.raise_for_status()
     data = resp.json()
     # v2 puede devolver lista o dict con clave 'leads'
@@ -471,18 +479,47 @@ def _crear_campana_instantly(campana):
     }
     payload = {
         'name': campana.nombre,
-        'sending_account': settings.INSTANTLY_EMAIL,
+        'campaign_schedule': {
+            'schedules': [
+                {
+                    'name': 'StockWise Chile',
+                    'timing': {'from': '09:00', 'to': '18:00'},
+                    'days': {
+                        'monday': True,
+                        'tuesday': True,
+                        'wednesday': True,
+                        'thursday': True,
+                        'friday': True,
+                    },
+                    'timezone': 'America/Santiago',
+                }
+            ]
+        },
     }
+    logger.info(f'[Instantly] POST /v2/campaigns — nombre="{campana.nombre}"')
     resp = requests.post(
         'https://api.instantly.ai/api/v2/campaigns',
         headers=headers,
         json=payload,
         timeout=15,
     )
+    logger.info(f'[Instantly] Respuesta campaigns: status={resp.status_code} body={resp.text[:300]}')
     resp.raise_for_status()
     data = resp.json()
     campana.instantly_campaign_id = data['id']
     campana.save(update_fields=['instantly_campaign_id'])
+
+    # Asociar cuenta de envío a la campaña recién creada
+    mail_payload = {'email': settings.INSTANTLY_EMAIL}
+    logger.info(f'[Instantly] POST /v2/campaigns/{campana.instantly_campaign_id}/mailaccounts — email={settings.INSTANTLY_EMAIL}')
+    resp_mail = requests.post(
+        f'https://api.instantly.ai/api/v2/campaigns/{campana.instantly_campaign_id}/mailaccounts',
+        headers=headers,
+        json=mail_payload,
+        timeout=15,
+    )
+    logger.info(f'[Instantly] Respuesta mailaccounts: status={resp_mail.status_code} body={resp_mail.text[:300]}')
+    resp_mail.raise_for_status()
 
 
 def campana_emails(request, pk):
