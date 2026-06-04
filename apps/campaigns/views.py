@@ -406,6 +406,10 @@ def enviar_a_instantly(request, pk):
     errores = []
 
     for email in emails_pendientes:
+        if not email.prospecto.email or not email.prospecto.email.strip():
+            logger.error(f'[Instantly] Prospecto sin email: {email.prospecto.nombre_completo} (id={email.prospecto.pk}) — omitido')
+            errores.append(f'{email.prospecto.nombre_completo}: sin email')
+            continue
         try:
             _crear_lead_instantly(email.prospecto, email, campana)
             email.enviado_a_instantly = True
@@ -444,13 +448,9 @@ def _crear_lead_instantly(prospecto, email_generado, campana):
         'leads': [
             {
                 'email': prospecto.email,
-                'firstName': prospecto.nombre,
-                'lastName': prospecto.apellido,
-                'companyName': prospecto.empresa,
-                'personalization': email_generado.cuerpo,
-                'custom_variables': {
-                    'asunto_personalizado': email_generado.asunto,
-                },
+                'first_name': prospecto.nombre or '',
+                'last_name': prospecto.apellido or '',
+                'company_name': prospecto.empresa or '',
             }
         ],
     }
