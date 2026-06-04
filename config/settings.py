@@ -86,6 +86,6 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY')
-INSTANTLY_API_KEY = config('INSTANTLY_API_KEY')
+ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY').strip()
+INSTANTLY_API_KEY = config('INSTANTLY_API_KEY').strip()
 INSTANTLY_EMAIL = config('INSTANTLY_EMAIL', default='soporte@stock-wise.cloud')
