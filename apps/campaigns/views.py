@@ -528,14 +528,13 @@ def enviar_a_instantly(request, pk):
     payload = {
         'campaign_id': campana.instantly_campaign_id,
         'skip_if_in_workspace': True,
-        'skip_if_in_campaign': True,
         'leads': leads_payload,
     }
 
-    logger.info(f'[Instantly] POST /v2/leads (Batch) — enviando {len(leads_payload)} leads a la campaña {campana.instantly_campaign_id}')
+    logger.info(f'[Instantly] POST /v2/leads/add (Batch) — enviando {len(leads_payload)} leads a la campaña {campana.instantly_campaign_id}')
     try:
         resp = requests.post(
-            'https://api.instantly.ai/api/v2/leads',
+            'https://api.instantly.ai/api/v2/leads/add',
             headers=headers,
             json=payload,
             timeout=30,
