@@ -364,7 +364,7 @@ def _generar_email_claude(prospecto, campana):
         )
 
     resp_cuerpo = cliente.messages.create(
-        model='claude-3-5-sonnet-latest',
+        model='claude-sonnet-4-5',
         max_tokens=400,
         messages=[{'role': 'user', 'content': prompt_cuerpo}],
     )
@@ -376,7 +376,7 @@ def _generar_email_claude(prospecto, campana):
         f"que parezca escrito por una persona real) para este cuerpo:\n\n{cuerpo}"
     )
     resp_asunto = cliente.messages.create(
-        model='claude-3-5-sonnet-latest',
+        model='claude-sonnet-4-5',
         max_tokens=50,
         messages=[{'role': 'user', 'content': prompt_asunto}],
     )
