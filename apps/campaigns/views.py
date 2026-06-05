@@ -2,11 +2,13 @@ import csv
 import io
 import json
 import logging
+from functools import wraps
 
 import anthropic
 import requests
 from django.conf import settings
 from django.contrib import messages
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -20,6 +22,7 @@ PRECIO_STOCKMENU_CLP = 45_000
 
 
 def _superuser_required(view_func):
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated or not request.user.is_superuser:
             return redirect('/login/')
@@ -213,8 +216,11 @@ def marcar_contactados(request, pk):
     if filtro_canal:
         qs = qs.filter(canal_contacto=filtro_canal)
 
+    canales_validos = [v for v, _ in Prospecto.CANALES]
     campos = {'contactado': True}
     if canal:
+        if canal not in canales_validos:
+            return JsonResponse({'error': 'Canal inválido'}, status=400)
         campos['canal_contacto'] = canal
 
     actualizados = qs.update(**campos)
@@ -234,7 +240,14 @@ def importar_csv(request, pk):
     canal_csv = request.POST.get('canal_contacto', '')
     contactado_csv = request.POST.get('contactado') == '1'
 
-    contenido = archivo.read().decode('utf-8-sig')
+    raw = archivo.read()
+    try:
+        contenido = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        try:
+            contenido = raw.decode('latin-1')
+        except UnicodeDecodeError:
+            return JsonResponse({'error': 'El archivo tiene un encoding no soportado. Guárdalo como UTF-8.'}, status=400)
     reader = csv.DictReader(io.StringIO(contenido))
 
     creados = 0
@@ -315,8 +328,8 @@ def generar_emails(request, pk):
                 prospecto.save(update_fields=['estado'])
             generados += 1
         except Exception as e:
-            logger.error(f'Error generando email para {prospecto.email}: {e}')
-            errores.append(f'{prospecto.email}: {str(e)}')
+            logger.error(f'Error generando email para prospecto ID {prospecto.pk}: {e}')
+            errores.append(f'{prospecto.nombre_completo}: {str(e)}')
 
     campana.emails_generados = campana.prospectos.filter(estado='email_generado').count()
     campana.save(update_fields=['emails_generados'])
@@ -368,6 +381,8 @@ def _generar_email_claude(prospecto, campana):
         max_tokens=400,
         messages=[{'role': 'user', 'content': prompt_cuerpo}],
     )
+    if not resp_cuerpo.content:
+        raise Exception('Claude no devolvió contenido para el cuerpo del email')
     cuerpo = resp_cuerpo.content[0].text.strip()
     tokens_cuerpo = resp_cuerpo.usage.input_tokens + resp_cuerpo.usage.output_tokens
 
@@ -380,6 +395,8 @@ def _generar_email_claude(prospecto, campana):
         max_tokens=50,
         messages=[{'role': 'user', 'content': prompt_asunto}],
     )
+    if not resp_asunto.content:
+        raise Exception('Claude no devolvió contenido para el asunto del email')
     asunto = resp_asunto.content[0].text.strip().strip('"').strip("'")
     tokens_asunto = resp_asunto.usage.input_tokens + resp_asunto.usage.output_tokens
 
@@ -448,7 +465,10 @@ def editar_email(request, pk):
         return JsonResponse({'error': 'Sin permiso'}, status=403)
 
     email = get_object_or_404(EmailGenerado, pk=pk)
-    data = json.loads(request.body)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
     email.asunto = data.get('asunto', email.asunto)
     email.cuerpo = data.get('cuerpo', email.cuerpo)
     email.save(update_fields=['asunto', 'cuerpo', 'editado_en'])
@@ -483,7 +503,7 @@ def enviar_a_instantly(request, pk):
 
     for email in emails_pendientes:
         if not email.prospecto.email or not email.prospecto.email.strip():
-            logger.error(f'[Instantly] Prospecto sin email: {email.prospecto.nombre_completo} (id={email.prospecto.pk}) — omitido')
+            logger.error(f'[Instantly] Prospecto sin email: id={email.prospecto.pk} — omitido')
             errores.append(f'{email.prospecto.nombre_completo}: sin email')
             continue
         valid_emails.append(email)
@@ -526,7 +546,10 @@ def enviar_a_instantly(request, pk):
             logger.error(f'[Instantly] Error {resp.status_code}: {error_detail}')
             raise Exception(f'Instantly {resp.status_code}: {error_detail}')
 
-        data = resp.json()
+        try:
+            data = resp.json()
+        except (json.JSONDecodeError, ValueError):
+            data = {}
         leads_creados = data if isinstance(data, list) else data.get('leads', [])
 
         # Mapear IDs de los leads por email
@@ -542,6 +565,8 @@ def enviar_a_instantly(request, pk):
             email_key = email.prospecto.email.lower().strip()
             if email_key in lead_id_map:
                 email.prospecto.instantly_lead_id = lead_id_map[email_key]
+            else:
+                logger.warning(f'[Instantly] Lead no encontrado en respuesta para prospecto ID {email.prospecto.pk}')
 
             email.enviado_a_instantly = True
             email.save(update_fields=['enviado_a_instantly'])
@@ -554,8 +579,9 @@ def enviar_a_instantly(request, pk):
         logger.error(f'Error enviando lote a Instantly: {e}')
         errores.append(f'Error en envío por lotes: {str(e)}')
 
-    campana.emails_enviados = campana.prospectos.filter(estado='enviado').count()
-    campana.save(update_fields=['emails_enviados'])
+    with transaction.atomic():
+        campana.emails_enviados = campana.prospectos.filter(estado='enviado').count()
+        campana.save(update_fields=['emails_enviados'])
 
     return JsonResponse({'enviados': enviados, 'errores': errores})
 
@@ -585,16 +611,28 @@ def _crear_campana_instantly(campana):
         },
     }
     logger.info(f'[Instantly] POST /v2/campaigns — nombre="{campana.nombre}"')
-    resp = requests.post(
-        'https://api.instantly.ai/api/v2/campaigns',
-        headers=headers,
-        json=payload,
-        timeout=15,
-    )
-    logger.info(f'[Instantly] Respuesta campaigns: status={resp.status_code} body={resp.text[:300]}')
-    resp.raise_for_status()
-    data = resp.json()
-    campana.instantly_campaign_id = data['id']
+    try:
+        resp = requests.post(
+            'https://api.instantly.ai/api/v2/campaigns',
+            headers=headers,
+            json=payload,
+            timeout=15,
+        )
+        logger.info(f'[Instantly] Respuesta campaigns: status={resp.status_code} body={resp.text[:300]}')
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise Exception(f'Error de red al crear campaña en Instantly: {e}')
+
+    try:
+        data = resp.json()
+    except (json.JSONDecodeError, ValueError) as e:
+        raise Exception(f'Respuesta inválida de Instantly al crear campaña: {e}')
+
+    campaign_id = data.get('id') or data.get('campaign_id')
+    if not campaign_id:
+        raise Exception(f'Instantly no devolvió ID de campaña. Respuesta: {data}')
+
+    campana.instantly_campaign_id = campaign_id
     campana.save(update_fields=['instantly_campaign_id'])
 
     # Nota: la cuenta de email se asigna desde el dashboard de Instantly,
@@ -639,6 +677,7 @@ def campana_respuestas(request, pk):
     })
 
 
+@require_POST
 def sincronizar_respuestas(request, pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
         return JsonResponse({'error': 'Sin permiso'}, status=403)
@@ -646,14 +685,22 @@ def sincronizar_respuestas(request, pk):
     campana = get_object_or_404(Campana, pk=pk)
 
     headers = {'Authorization': f'Bearer {settings.INSTANTLY_API_KEY}'}
-    resp = requests.get(
-        'https://api.instantly.ai/api/v2/replies',
-        headers=headers,
-        params={'campaign_id': campana.instantly_campaign_id},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    try:
+        resp = requests.get(
+            'https://api.instantly.ai/api/v2/replies',
+            headers=headers,
+            params={'campaign_id': campana.instantly_campaign_id},
+            timeout=15,
+        )
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logger.error(f'[Instantly] Error al obtener respuestas: {e}')
+        return JsonResponse({'error': f'Error de conexión con Instantly: {str(e)}'}, status=502)
+
+    try:
+        data = resp.json()
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Respuesta inválida de Instantly'}, status=502)
 
     procesados = 0
     for reply in data.get('replies', data if isinstance(data, list) else []):
