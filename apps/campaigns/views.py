@@ -515,7 +515,7 @@ def enviar_a_instantly(request, pk):
     leads_payload = []
     for email in valid_emails:
         leads_payload.append({
-            'email': email.prospecto.email.strip(),
+            'email_address': email.prospecto.email.strip(),
             'first_name': email.prospecto.nombre or '',
             'last_name': email.prospecto.apellido or '',
             'company_name': email.prospecto.empresa or '',
