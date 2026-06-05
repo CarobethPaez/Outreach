@@ -527,7 +527,7 @@ def enviar_a_instantly(request, pk):
     }
     payload = {
         'campaign_id': campana.instantly_campaign_id,
-        'skip_if_in_workspace': True,
+        'skip_if_in_workspace': False,
         'leads': leads_payload,
     }
 
