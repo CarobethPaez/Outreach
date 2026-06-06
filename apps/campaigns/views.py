@@ -384,7 +384,7 @@ def _generar_email_claude(prospecto, campana):
             f"Saludos,\n\n"
             f"Carolina Páez\n"
             f"Creadora de StockMenu\n"
-            f"carolina@stock-menu.com\n"
+            f"soporte@stock-menu.com\n"
             f"stock-menu.com"
         )
 
