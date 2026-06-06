@@ -17,6 +17,12 @@ from .models import Campana, EmailGenerado, Prospecto, ProspectoCRM
 
 logger = logging.getLogger(__name__)
 
+
+def _instantly_key():
+    """Retorna la API key de Instantly sin espacios ni saltos de línea."""
+    return str(settings.INSTANTLY_API_KEY).strip()
+
+
 PRECIO_STOCKWISE_CLP = 115_000
 PRECIO_STOCKMENU_CLP = 45_000
 
@@ -522,7 +528,7 @@ def enviar_a_instantly(request, pk):
         })
 
     headers = {
-        'Authorization': f'Bearer {settings.INSTANTLY_API_KEY}',
+        'Authorization': f'Bearer {_instantly_key()}',
         'Content-Type': 'application/json',
     }
     payload = {
@@ -540,6 +546,7 @@ def enviar_a_instantly(request, pk):
             timeout=30,
         )
         logger.info(f'[Instantly] Respuesta leads: status={resp.status_code}')
+        logger.info(f'[Instantly] Respuesta leads body: {resp.text[:500]}')
         if resp.status_code != 200:
             error_detail = resp.text
             logger.error(f'[Instantly] Error {resp.status_code}: {error_detail}')
@@ -587,7 +594,7 @@ def enviar_a_instantly(request, pk):
 
 def _crear_campana_instantly(campana):
     headers = {
-        'Authorization': f'Bearer {settings.INSTANTLY_API_KEY}',
+        'Authorization': f'Bearer {_instantly_key()}',
         'Content-Type': 'application/json',
     }
     payload = {
@@ -617,7 +624,7 @@ def _crear_campana_instantly(campana):
             json=payload,
             timeout=15,
         )
-        logger.info(f'[Instantly] Respuesta campaigns: status={resp.status_code} body={resp.text[:300]}')
+        logger.info(f'[Instantly] Respuesta campaigns: status={resp.status_code} body={resp.text[:500]}')
         resp.raise_for_status()
     except requests.exceptions.RequestException as e:
         raise Exception(f'Error de red al crear campaña en Instantly: {e}')
@@ -683,7 +690,7 @@ def sincronizar_respuestas(request, pk):
 
     campana = get_object_or_404(Campana, pk=pk)
 
-    headers = {'Authorization': f'Bearer {settings.INSTANTLY_API_KEY}'}
+    headers = {'Authorization': f'Bearer {_instantly_key()}'}
     try:
         resp = requests.get(
             'https://api.instantly.ai/api/v2/replies',
