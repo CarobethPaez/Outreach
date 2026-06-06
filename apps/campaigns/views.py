@@ -366,20 +366,26 @@ def _generar_email_claude(prospecto, campana):
         )
     else:
         prompt_cuerpo = (
-            f"Redacta un email de prospección B2B en español para {prospecto.nombre}, "
-            f"dueño/gerente de {prospecto.empresa} en {prospecto.ciudad}. "
-            f"Producto: StockMenu — SaaS chileno para gastronomía con menú QR digital, POS integrado, "
-            f"gestión de inventario y análisis IA. Reemplaza la carta impresa y el POS caro. "
-            f"Tono: {campana.get_tono_display()}. Máximo 120 palabras. Sin asunto — solo el cuerpo. "
-            f"CTA: mostrar cómo quedaría su carta digital en 10 minutos. "
-            f"URL: stockmenu.cl "
-            f"NO mencionar que es generado por IA. "
+            f"Redacta un email de prospección B2B en español para {prospecto.nombre} {prospecto.apellido}, "
+            f"{prospecto.cargo} en {prospecto.empresa}. "
+            f"{'Ubicación: ' + prospecto.ciudad + '.' if prospecto.ciudad else ''} "
+            f"Producto: StockMenu — SaaS chileno para restaurantes y cafeterías. "
+            f"Controla el stock de insumos en tiempo real, descuenta automáticamente con cada venta, "
+            f"avisa por WhatsApp cuando algo está por agotarse, y emite boletas electrónicas al SII. "
+            f"Plan Básico $29.990/mes. Plan Pro $39.990/mes. Sin contrato de permanencia. "
+            f"Tono: {campana.get_tono_display()}. Máximo 100 palabras. Sin asunto — solo el cuerpo. "
+            f"Personaliza mencionando el tipo de negocio ({prospecto.empresa}) de forma natural. "
+            f"El dolor principal que resuelve: dejar de perder plata por sobrestock o quiebres de stock. "
+            f"CTA: proponer 15 minutos para mostrar el sistema en acción con datos reales. "
+            f"URL: https://stock-menu.com "
+            f"NO mencionar que es generado por IA. NO usar frases genéricas como 'espero que estés bien'. "
+            f"NO usar signos de exclamación. Escribir como persona real, no como vendedor. "
             f"Cierra el email con esta firma exacta, respetando los saltos de línea:\n\n"
             f"Saludos,\n\n"
-            f"Carolina Páez López\n"
-            f"Creadora de StockWise\n"
-            f"soporte@stock-wise.cloud\n"
-            f"www.stock-wise.cloud"
+            f"Carolina Páez\n"
+            f"Creadora de StockMenu\n"
+            f"carolina@stock-menu.com\n"
+            f"stock-menu.com"
         )
 
     resp_cuerpo = cliente.messages.create(
@@ -393,8 +399,9 @@ def _generar_email_claude(prospecto, campana):
     tokens_cuerpo = resp_cuerpo.usage.input_tokens + resp_cuerpo.usage.output_tokens
 
     prompt_asunto = (
-        f"Genera SOLO el asunto del email (máximo 8 palabras, sin signos de exclamación, "
-        f"que parezca escrito por una persona real) para este cuerpo:\n\n{cuerpo}"
+        f"Genera SOLO el asunto del email (máximo 7 palabras, sin signos de exclamación, "
+        f"sin 'Re:' ni 'Fwd:', que parezca escrito por una persona real, "
+        f"en español) para este cuerpo:\n\n{cuerpo}"
     )
     resp_asunto = cliente.messages.create(
         model='claude-sonnet-4-5',
