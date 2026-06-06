@@ -792,6 +792,21 @@ def onboarding(request):
 
 
 @_superuser_required
+def deck_stockmenu(request):
+    return render(request, 'deck_stockmenu.html')
+
+
+@_superuser_required
+def ensayo_stockmenu(request):
+    return render(request, 'ensayo_stockmenu.html')
+
+
+@_superuser_required
+def onboarding_stockmenu(request):
+    return render(request, 'onboarding_stockmenu.html')
+
+
+@_superuser_required
 def crm(request):
 
     entradas = ProspectoCRM.objects.select_related(

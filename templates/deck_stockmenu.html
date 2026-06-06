@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+{% block title %}Deck de Ventas StockMenu{% endblock %}
+{% block page_title %}Deck de Ventas — StockMenu{% endblock %}
+{% block nav_deck_sm %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  .deck-wrap {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .slide-container {
+    position: relative;
+    background: #0a0a0a;
+    border: 1px solid #0f3028;
+    border-radius: 16px;
+    min-height: 460px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(15,110,86,.07);
+  }
+
+  .slide {
+    display: none;
+    padding: 52px 64px;
+    width: 100%;
+    animation: fadeIn .25s ease;
+  }
+  .slide.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Slide-specific layouts */
+  .slide-cover { text-align: center; }
+  .slide-cover .sm-logo {
+    font-size: 38px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #0F6E56 0%, #22c55e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+    margin-bottom: 18px;
+  }
+  .slide-cover .tagline {
+    font-size: 26px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin-bottom: 12px;
+    line-height: 1.25;
+  }
+  .slide-cover .sub {
+    font-size: 15px;
+    color: #666;
+  }
+  .slide-cover .sub a { color: #0F6E56; text-decoration: none; }
+  .slide-cover .deco {
+    width: 80px; height: 3px;
+    background: linear-gradient(90deg, #0F6E56, #22c55e);
+    border-radius: 2px;
+    margin: 20px auto;
+  }
+
+  .slide-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #0F6E56;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  .slide h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin-bottom: 28px;
+    line-height: 1.3;
+  }
+
+  .slide ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .slide ul li {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    font-size: 15.5px;
+    color: #c8c8c8;
+    line-height: 1.4;
+  }
+
+  .slide ul li .bullet {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(15,110,86,.15);
+    border: 1px solid rgba(15,110,86,.3);
+    color: #0F6E56;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .slide ul li .icon {
+    font-size: 20px;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  /* Metrics slide */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 8px;
+  }
+
+  .metric-card {
+    background: rgba(15,110,86,.06);
+    border: 1px solid rgba(15,110,86,.15);
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-align: center;
+  }
+
+  .metric-card .big {
+    font-size: 34px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #0F6E56, #22c55e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: 10px;
+  }
+
+  .metric-card .desc {
+    font-size: 13.5px;
+    color: #888;
+    line-height: 1.4;
+  }
+
+  /* Steps slide */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .step-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0F6E56, #22c55e);
+    color: #fff;
+    font-weight: 800;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-text {
+    font-size: 15.5px;
+    color: #c8c8c8;
+    line-height: 1.4;
+    padding-top: 6px;
+  }
+
+  /* Pricing slide */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 8px;
+  }
+
+  .pricing-card {
+    background: rgba(15,110,86,.06);
+    border: 1px solid rgba(15,110,86,.15);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .pricing-card.featured {
+    background: rgba(15,110,86,.12);
+    border-color: rgba(15,110,86,.35);
+  }
+
+  .pricing-card .plan-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0F6E56;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .pricing-card .plan-price {
+    font-size: 28px;
+    font-weight: 800;
+    color: #f0f0f0;
+    margin-bottom: 16px;
+  }
+
+  .pricing-card .plan-price span {
+    font-size: 13px;
+    font-weight: 400;
+    color: #666;
+  }
+
+  .pricing-card ul {
+    gap: 8px;
+  }
+
+  .pricing-card ul li {
+    font-size: 13.5px;
+    gap: 8px;
+  }
+
+  .pricing-card ul li::before {
+    content: "✓";
+    color: #0F6E56;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* CTA slide */
+  .slide-cta { text-align: center; }
+  .slide-cta h2 { margin-bottom: 20px; }
+  .cta-box {
+    background: rgba(15,110,86,.08);
+    border: 1px solid rgba(15,110,86,.2);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+  }
+  .cta-box p {
+    font-size: 16px;
+    color: #c8c8c8;
+    line-height: 1.7;
+  }
+  .cta-email {
+    display: inline-block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #0F6E56;
+    text-decoration: none;
+    border: 2px solid rgba(15,110,86,.4);
+    border-radius: 10px;
+    padding: 14px 32px;
+    transition: background .2s;
+  }
+  .cta-email:hover { background: rgba(15,110,86,.1); }
+
+  /* Navigation */
+  .slide-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+
+  .slide-nav button {
+    background: #1a1a1a;
+    border: 1px solid #2e2e2e;
+    color: #e8e8e8;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+
+  .slide-nav button:hover { background: #242424; border-color: #0F6E56; }
+  .slide-nav button:disabled { opacity: .3; cursor: default; }
+
+  .dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #333;
+    cursor: pointer;
+    transition: background .2s, transform .2s;
+  }
+
+  .dot.active {
+    background: #0F6E56;
+    transform: scale(1.3);
+  }
+
+  .slide-counter {
+    font-size: 12px;
+    color: #555;
+    min-width: 40px;
+    text-align: center;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="deck-wrap">
+  <div class="slide-container">
+
+    <!-- Slide 1: Portada -->
+    <div class="slide slide-cover active">
+      <div class="sm-logo">StockMenu</div>
+      <div class="tagline">El sistema que pone tu<br>restaurante en control total</div>
+      <div class="deco"></div>
+      <div class="sub">Para restaurantes y cafeterías chilenas &nbsp;·&nbsp; <a href="https://stock-menu.com" target="_blank">stock-menu.com</a></div>
+    </div>
+
+    <!-- Slide 2: El problema -->
+    <div class="slide">
+      <div class="slide-title">El problema</div>
+      <h2>¿Cuánto pierdes por no tener<br>control de tu stock gastronómico?</h2>
+      <ul>
+        <li>
+          <span class="bullet">1</span>
+          Sobrestock de insumos que se vencen y hay que tirar
+        </li>
+        <li>
+          <span class="bullet">2</span>
+          Quiebres de stock en plena hora punta — el plato más pedido no se puede servir
+        </li>
+        <li>
+          <span class="bullet">3</span>
+          Sin boleta electrónica SII integrada: multas y complicaciones con el Servicio de Impuestos Internos
+        </li>
+        <li>
+          <span class="bullet">4</span>
+          Horas perdidas cuadrando cuentas en planillas que nadie actualiza
+        </li>
+      </ul>
+    </div>
+
+    <!-- Slide 3: La solución -->
+    <div class="slide">
+      <div class="slide-title">La solución</div>
+      <h2>StockMenu automatiza el control<br>de tu negocio gastronómico</h2>
+      <ul>
+        <li>
+          <span class="icon">🔔</span>
+          Alertas por WhatsApp cuando el stock de un insumo está bajo
+        </li>
+        <li>
+          <span class="icon">🧾</span>
+          Boleta electrónica SII integrada — cumples con el SII sin esfuerzo
+        </li>
+        <li>
+          <span class="icon">📉</span>
+          Descuento automático de stock al registrar cada venta
+        </li>
+        <li>
+          <span class="icon">📱</span>
+          Menú digital QR para tus mesas — sin impresiones, actualización en tiempo real
+        </li>
+        <li>
+          <span class="icon">📊</span>
+          Reportes de ventas y rentabilidad por plato en segundos
+        </li>
+      </ul>
+    </div>
+
+    <!-- Slide 4: Cómo funciona -->
+    <div class="slide">
+      <div class="slide-title">Cómo funciona</div>
+      <h2>Arrancas en un día,<br>sin capacitaciones largas</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Registras tu carta y los insumos de cada plato</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">Cada venta descuenta automáticamente el stock de ingredientes</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Recibes alertas en WhatsApp antes de quedarte sin lo crítico</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">Emites boletas electrónicas SII con un clic desde el mismo sistema</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 5: Resultados -->
+    <div class="slide">
+      <div class="slide-title">Resultados</div>
+      <h2>Lo que logran nuestros<br>clientes en los primeros 30 días</h2>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="big">-30%</div>
+          <div class="desc">reducción de merma y sobrestock en insumos</div>
+        </div>
+        <div class="metric-card">
+          <div class="big">0</div>
+          <div class="desc">quiebres de stock crítico en hora punta</div>
+        </div>
+        <div class="metric-card">
+          <div class="big">100%</div>
+          <div class="desc">cumplimiento SII con boleta electrónica integrada</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 6: Planes -->
+    <div class="slide">
+      <div class="slide-title">Planes</div>
+      <h2>Precios pensados<br>para la gastronomía chilena</h2>
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="plan-name">Plan Básico</div>
+          <div class="plan-price">$29.990<span>/mes</span></div>
+          <ul>
+            <li>Control de stock por insumo</li>
+            <li>Alertas WhatsApp de reposición</li>
+            <li>Menú digital QR</li>
+            <li>Boleta electrónica SII</li>
+            <li>Descuento automático de stock</li>
+          </ul>
+        </div>
+        <div class="pricing-card featured">
+          <div class="plan-name">Plan Pro</div>
+          <div class="plan-price">$39.990<span>/mes</span></div>
+          <ul>
+            <li>Todo lo del Plan Básico</li>
+            <li>Reportes avanzados de rentabilidad</li>
+            <li>Múltiples usuarios y roles</li>
+            <li>Dashboard de ventas en tiempo real</li>
+            <li>Soporte prioritario por WhatsApp</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 7: CTA -->
+    <div class="slide slide-cta">
+      <div class="slide-title">Siguiente paso</div>
+      <h2>Demo en vivo con tus datos reales</h2>
+      <div class="cta-box">
+        <p>15 minutos · Sin compromiso · Vemos juntos cómo impacta en tu negocio<br>
+        Empieza gratis en <strong style="color:#0F6E56;">stock-menu.com</strong> o agenda una demo directa</p>
+      </div>
+      <a href="mailto:soporte@stock-menu.com" class="cta-email">soporte@stock-menu.com</a>
+    </div>
+
+  </div><!-- /slide-container -->
+
+  <div class="slide-nav">
+    <button id="btn-prev" onclick="cambiarSlide(-1)" disabled>← Anterior</button>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+      <div class="dots" id="dots"></div>
+      <span class="slide-counter" id="counter">1 / 7</span>
+    </div>
+    <button id="btn-next" onclick="cambiarSlide(1)">Siguiente →</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsContainer = document.getElementById('dots');
+  let current = 0;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsContainer.appendChild(d);
+  });
+
+  function goTo(n) {
+    slides[current].classList.remove('active');
+    dotsContainer.children[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    dotsContainer.children[current].classList.add('active');
+    document.getElementById('counter').textContent = `${current + 1} / ${slides.length}`;
+    document.getElementById('btn-prev').disabled = current === 0;
+    document.getElementById('btn-next').disabled = current === slides.length - 1;
+  }
+
+  function cambiarSlide(dir) { goTo(current + dir); }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') cambiarSlide(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   cambiarSlide(-1);
+  });
+</script>
+{% endblock %}
