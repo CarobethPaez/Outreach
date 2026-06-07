@@ -321,12 +321,22 @@ def generar_emails(request, pk):
         return JsonResponse({'error': 'Sin permiso'}, status=403)
 
     campana = get_object_or_404(Campana, pk=pk)
-    todos_los_prospectos = campana.prospectos.all()
+    total_campana = campana.prospectos.count()
+
+    # Excluir prospectos ya contactados (marcados en verde en la UI) y
+    # aquellos que ya tienen un email generado por IA — no tiene sentido
+    # regenerar ni volver a contactar a quien ya fue abordado.
+    prospectos_a_procesar = campana.prospectos.filter(
+        contactado=False,
+        email_generado__isnull=True,
+    )
+
+    omitidos = total_campana - prospectos_a_procesar.count()
 
     generados = 0
     errores = []
 
-    for prospecto in todos_los_prospectos:
+    for prospecto in prospectos_a_procesar:
         try:
             _generar_email_claude(prospecto, campana)
             if prospecto.estado == 'pendiente':
@@ -340,7 +350,18 @@ def generar_emails(request, pk):
     campana.emails_generados = campana.prospectos.filter(estado='email_generado').count()
     campana.save(update_fields=['emails_generados'])
 
-    return JsonResponse({'generados': generados, 'errores': errores})
+    mensaje = (
+        f'Generando emails para {prospectos_a_procesar.count()} prospectos. '
+        f'{omitidos} prospectos ya contactados o con email ya generado fueron omitidos.'
+    )
+    logger.info(f'generar_emails campana={campana.pk}: {mensaje}')
+
+    return JsonResponse({
+        'generados': generados,
+        'omitidos': omitidos,
+        'mensaje': mensaje,
+        'errores': errores,
+    })
 
 
 def _generar_email_claude(prospecto, campana):
@@ -446,19 +467,23 @@ def aprobar_todos_emails(request, pk):
         return JsonResponse({'error': 'Sin permiso'}, status=403)
     
     campana = get_object_or_404(Campana, pk=pk)
-    
-    # Approve all pending generated emails for this campaign
+
+    # Approve all pending generated emails for this campaign — excluyendo
+    # prospectos ya contactados (no tiene sentido aprobar/enviar a quien
+    # ya fue abordado por otro canal).
     emails = EmailGenerado.objects.filter(
         prospecto__campana=campana,
+        prospecto__contactado=False,
         aprobado=False,
         enviado_a_instantly=False
     )
     count = emails.count()
     emails.update(aprobado=True)
-    
+
     # Update status of these prospects to approved
     prospectos = Prospecto.objects.filter(
         campana=campana,
+        contactado=False,
         estado='email_generado'
     )
     prospectos.update(estado='aprobado')
