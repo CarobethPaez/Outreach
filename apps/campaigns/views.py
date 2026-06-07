@@ -558,7 +558,7 @@ def enviar_a_instantly(request, pk):
             f'cuerpo: {len(email.cuerpo) if email.cuerpo else 0} chars'
         )
         leads_payload.append({
-            'email_address': email.prospecto.email.strip(),
+            'email': email.prospecto.email.strip(),
             'first_name': email.prospecto.nombre or '',
             'last_name': email.prospecto.apellido or '',
             'company_name': email.prospecto.empresa or '',
