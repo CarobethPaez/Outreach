@@ -552,11 +552,21 @@ def enviar_a_instantly(request, pk):
     # Preparar lote de leads para envío masivo
     leads_payload = []
     for email in valid_emails:
+        logger.info(
+            f'[Instantly] Lead {email.prospecto.email} — '
+            f'asunto: {email.asunto[:50] if email.asunto else "vacío"} — '
+            f'cuerpo: {len(email.cuerpo) if email.cuerpo else 0} chars'
+        )
         leads_payload.append({
             'email_address': email.prospecto.email.strip(),
             'first_name': email.prospecto.nombre or '',
             'last_name': email.prospecto.apellido or '',
             'company_name': email.prospecto.empresa or '',
+            'personalization': email.cuerpo or '',
+            'custom_variables': {
+                'asunto': email.asunto or '',
+                'cuerpo': email.cuerpo or '',
+            }
         })
 
     headers = {
