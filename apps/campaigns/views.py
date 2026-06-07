@@ -598,7 +598,7 @@ def enviar_a_instantly(request, pk):
             data = resp.json()
         except (json.JSONDecodeError, ValueError):
             data = {}
-        leads_creados = data if isinstance(data, list) else data.get('leads', [])
+        leads_creados = data if isinstance(data, list) else data.get('created_leads', [])
 
         # Mapear IDs de los leads por email
         lead_id_map = {}
