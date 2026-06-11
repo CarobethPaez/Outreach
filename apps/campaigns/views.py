@@ -1,4 +1,5 @@
 import csv
+import datetime
 import io
 import json
 import logging
@@ -13,6 +14,7 @@ from django.db import transaction
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .models import Campana, EmailGenerado, InteraccionCRM, Prospecto, ProspectoCRM
@@ -27,6 +29,49 @@ def _instantly_key():
 
 PRECIO_STOCKWISE_CLP = 115_000
 PRECIO_STOCKMENU_CLP = 45_000
+
+# Orden de etapas del pipeline para el funnel del dashboard. "perdido" no
+# forma parte del funnel de conversión (se cuenta aparte si hace falta).
+ETAPAS_FUNNEL = ['respondio', 'demo_agendada', 'demo_hecha', 'piloto_activo', 'cliente_pagado']
+
+
+def _funnel_data(producto=None):
+    """Calcula el funnel de conversión (contactados → ... → clientes pagados).
+
+    Cada etapa del funnel es acumulativa: cuenta los contactos que llegaron
+    a esa etapa o más allá, según su `etapa` actual en ProspectoCRM.
+    """
+    campanas = Campana.objects.all()
+    crm_qs = ProspectoCRM.objects.all()
+    if producto:
+        campanas = campanas.filter(producto=producto)
+        crm_qs = crm_qs.filter(prospecto__campana__producto=producto)
+
+    contactados = sum(c.emails_enviados for c in campanas)
+
+    conteo_por_etapa = {
+        etapa: crm_qs.filter(etapa=etapa).count() for etapa, _ in ProspectoCRM.ETAPAS
+    }
+
+    etapas_funnel = []
+    valor_anterior = contactados
+    for i, etapa in enumerate(ETAPAS_FUNNEL):
+        valor = sum(conteo_por_etapa[e] for e in ETAPAS_FUNNEL[i:])
+        conversion = round(valor / valor_anterior * 100, 1) if valor_anterior else 0
+        etapas_funnel.append({
+            'etapa': etapa,
+            'label': dict(ProspectoCRM.ETAPAS)[etapa],
+            'valor': valor,
+            'conversion': conversion,
+        })
+        valor_anterior = valor
+
+    return {
+        'contactados': contactados,
+        'etapas': etapas_funnel,
+        'pilotos_activos': conteo_por_etapa['piloto_activo'],
+        'clientes_pagados': conteo_por_etapa['cliente_pagado'],
+    }
 
 
 def _superuser_required(view_func):
@@ -45,22 +90,43 @@ def dashboard(request):
 
     total_enviados = sum(c.emails_enviados for c in campanas)
     total_respuestas = sum(c.respuestas for c in campanas)
-    total_interesados = sum(c.interesados for c in campanas)
 
-    interesados_sw = sum(c.interesados for c in campanas if c.producto == 'stockwise')
-    interesados_sm = sum(c.interesados for c in campanas if c.producto == 'stockmenu')
+    tasa_respuesta_global = round(total_respuestas / total_enviados * 100, 1) if total_enviados else 0
 
-    mrr_potencial_stockwise = interesados_sw * PRECIO_STOCKWISE_CLP
-    mrr_potencial_stockmenu = interesados_sm * PRECIO_STOCKMENU_CLP
+    funnel_global = _funnel_data()
+    funnel_stockwise = _funnel_data('stockwise')
+    funnel_stockmenu = _funnel_data('stockmenu')
+
+    hoy = timezone.now().date()
+    inicio_semana = hoy - datetime.timedelta(days=hoy.weekday())
+    fin_semana = inicio_semana + datetime.timedelta(days=6)
+    demos_agendadas_semana = ProspectoCRM.objects.filter(
+        etapa='demo_agendada',
+        fecha_proxima_accion__range=[inicio_semana, fin_semana],
+    ).count()
+
+    mrr_actual = (
+        funnel_stockwise['clientes_pagados'] * PRECIO_STOCKWISE_CLP
+        + funnel_stockmenu['clientes_pagados'] * PRECIO_STOCKMENU_CLP
+    )
+    mrr_potencial = (
+        funnel_stockwise['pilotos_activos'] * PRECIO_STOCKWISE_CLP
+        + funnel_stockmenu['pilotos_activos'] * PRECIO_STOCKMENU_CLP
+    )
 
     return render(request, 'dashboard.html', {
         'campanas': campanas,
         'total_campanas': campanas.count(),
         'total_enviados': total_enviados,
         'total_respuestas': total_respuestas,
-        'total_interesados': total_interesados,
-        'mrr_potencial_stockwise': mrr_potencial_stockwise,
-        'mrr_potencial_stockmenu': mrr_potencial_stockmenu,
+        'tasa_respuesta_global': tasa_respuesta_global,
+        'funnel_global': funnel_global,
+        'funnel_stockwise': funnel_stockwise,
+        'funnel_stockmenu': funnel_stockmenu,
+        'demos_agendadas_semana': demos_agendadas_semana,
+        'pilotos_activos': funnel_stockwise['pilotos_activos'] + funnel_stockmenu['pilotos_activos'],
+        'mrr_actual': mrr_actual,
+        'mrr_potencial': mrr_potencial,
     })
 
 
@@ -982,4 +1048,30 @@ def crm_detalle(request, pk):
         'interacciones': entrada.interacciones.all(),
         'acciones': ProspectoCRM.ACCIONES,
         'etapas': ProspectoCRM.ETAPAS,
+    })
+
+
+@_superuser_required
+def agenda(request):
+    hoy = timezone.now().date()
+    limite = hoy + datetime.timedelta(days=7)
+
+    pendientes = ProspectoCRM.objects.select_related(
+        'prospecto', 'prospecto__campana'
+    ).filter(
+        fecha_proxima_accion__isnull=False,
+        fecha_proxima_accion__lte=limite,
+    ).order_by('fecha_proxima_accion')
+
+    items = []
+    for entrada in pendientes:
+        items.append({
+            'entrada': entrada,
+            'vencido': entrada.fecha_proxima_accion < hoy,
+            'es_hoy': entrada.fecha_proxima_accion == hoy,
+        })
+
+    return render(request, 'agenda.html', {
+        'items': items,
+        'hoy': hoy,
     })

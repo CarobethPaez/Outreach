@@ -3,42 +3,258 @@
 {% block page_title %}Dashboard{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
+{% block extra_head %}
+<style>
+  :root {
+    --bg: #080a0d;
+    --bg2: #0f1318;
+    --bg3: #161b22;
+    --border: #1f2730;
+    --accent: #00d4ff;
+    --accent2: #00a8cc;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+  }
+
+  .funnel {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    margin-bottom: 28px;
+  }
+
+  .funnel-step {
+    flex: 1;
+    min-width: 150px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 14px;
+    text-align: center;
+    position: relative;
+  }
+
+  .funnel-step + .funnel-step { margin-left: 28px; }
+
+  .funnel-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 0;
+    position: relative;
+  }
+
+  .funnel-arrow .arrow-icon {
+    position: absolute;
+    left: -22px;
+    top: 38%;
+    font-size: 18px;
+    color: var(--text2);
+  }
+
+  .funnel-arrow .conv {
+    position: absolute;
+    left: -34px;
+    top: 58%;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .funnel-step .label {
+    font-size: 11.5px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  .funnel-step .value {
+    font-size: 28px;
+    font-weight: 700;
+    margin-top: 8px;
+    color: var(--text);
+  }
+
+  .funnel-step.contactados .value { color: var(--accent); }
+  .funnel-step.cliente_pagado .value { color: var(--green); }
+
+  .seccion-titulo {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 28px 0 14px;
+  }
+
+  .producto-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  @media (max-width: 900px) {
+    .producto-grid { grid-template-columns: 1fr; }
+    .funnel { flex-direction: column; }
+    .funnel-step + .funnel-step { margin-left: 0; margin-top: 28px; }
+    .funnel-arrow { width: auto; height: 28px; transform: rotate(90deg); }
+  }
+
+  .producto-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+
+  .producto-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .mini-funnel-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .mini-funnel-row:last-child { border-bottom: none; }
+  .mini-funnel-row .k { color: var(--text2); }
+  .mini-funnel-row .v { font-weight: 600; }
+  .mini-funnel-row .conv { color: var(--accent); font-size: 11.5px; margin-left: 8px; }
+
+  .campaign-name-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-edit-name {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  .campaign-name-container:hover .btn-edit-name {
+    opacity: 0.6;
+  }
+  .btn-edit-name:hover {
+    opacity: 1 !important;
+    transform: scale(1.15);
+  }
+  .campaign-name-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+  .campaign-name-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13.5px;
+    flex: 1;
+    max-width: 320px;
+  }
+  .campaign-name-input:focus {
+    border-color: var(--accent);
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-heading">
   <h1>Dashboard</h1>
   <a href="{% url 'campana_nueva' %}" class="btn btn-primary">+ Nueva campaña</a>
 </div>
 
+<!-- Métricas clave -->
 <div class="cards-grid">
   <div class="card">
-    <div class="label">Campañas</div>
-    <div class="value">{{ total_campanas }}</div>
+    <div class="label">Prospectos contactados</div>
+    <div class="value accent">{{ funnel_global.contactados }}</div>
   </div>
   <div class="card">
-    <div class="label">Emails enviados</div>
-    <div class="value accent">{{ total_enviados }}</div>
+    <div class="label">Tasa de respuesta global</div>
+    <div class="value">{{ tasa_respuesta_global }}%</div>
   </div>
   <div class="card">
-    <div class="label">Respuestas</div>
-    <div class="value">{{ total_respuestas }}</div>
+    <div class="label">Demos agendadas (esta semana)</div>
+    <div class="value">{{ demos_agendadas_semana }}</div>
   </div>
   <div class="card">
-    <div class="label">Interesados</div>
-    <div class="value green">{{ total_interesados }}</div>
+    <div class="label">Pilotos activos</div>
+    <div class="value green">{{ pilotos_activos }}</div>
   </div>
   <div class="card">
-    <div class="label">MRR potencial StockWise</div>
-    <div class="value green" style="font-size:18px;">
-      ${{ mrr_potencial_stockwise|floatformat:0 }}
-    </div>
+    <div class="label">MRR actual</div>
+    <div class="value green" style="font-size:18px;">${{ mrr_actual|floatformat:0 }}</div>
     <div class="text-muted text-sm mt-1">CLP / mes</div>
   </div>
   <div class="card">
-    <div class="label">MRR potencial StockMenu</div>
-    <div class="value accent" style="font-size:18px;">
-      ${{ mrr_potencial_stockmenu|floatformat:0 }}
-    </div>
+    <div class="label">MRR potencial</div>
+    <div class="value accent" style="font-size:18px;">${{ mrr_potencial|floatformat:0 }}</div>
     <div class="text-muted text-sm mt-1">CLP / mes</div>
+  </div>
+</div>
+
+<!-- Funnel de conversión -->
+<div class="seccion-titulo">Funnel de conversión</div>
+<div class="funnel">
+  <div class="funnel-step contactados">
+    <div class="label">Contactados</div>
+    <div class="value">{{ funnel_global.contactados }}</div>
+  </div>
+  {% for etapa in funnel_global.etapas %}
+  <div class="funnel-arrow">
+    <span class="arrow-icon">→</span>
+    <span class="conv">{{ etapa.conversion }}%</span>
+  </div>
+  <div class="funnel-step {{ etapa.etapa }}">
+    <div class="label">{{ etapa.label }}</div>
+    <div class="value">{{ etapa.valor }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Breakdown por producto -->
+<div class="seccion-titulo">Breakdown por producto</div>
+<div class="producto-grid">
+  <div class="producto-card">
+    <h3><span class="badge badge-stockwise">StockWise</span></h3>
+    <div class="mini-funnel-row">
+      <span class="k">Contactados</span>
+      <span class="v">{{ funnel_stockwise.contactados }}</span>
+    </div>
+    {% for etapa in funnel_stockwise.etapas %}
+    <div class="mini-funnel-row">
+      <span class="k">{{ etapa.label }}</span>
+      <span><span class="v">{{ etapa.valor }}</span><span class="conv">{{ etapa.conversion }}%</span></span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="producto-card">
+    <h3><span class="badge badge-stockmenu">StockMenu</span></h3>
+    <div class="mini-funnel-row">
+      <span class="k">Contactados</span>
+      <span class="v">{{ funnel_stockmenu.contactados }}</span>
+    </div>
+    {% for etapa in funnel_stockmenu.etapas %}
+    <div class="mini-funnel-row">
+      <span class="k">{{ etapa.label }}</span>
+      <span><span class="v">{{ etapa.valor }}</span><span class="conv">{{ etapa.conversion }}%</span></span>
+    </div>
+    {% endfor %}
   </div>
 </div>
 
@@ -93,52 +309,6 @@
     </tbody>
   </table>
 </div>
-{% endblock %}
-
-{% block extra_head %}
-<style>
-  .campaign-name-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .btn-edit-name {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    opacity: 0;
-    transition: opacity 0.2s, transform 0.2s;
-    padding: 2px 4px;
-    border-radius: 4px;
-  }
-  .campaign-name-container:hover .btn-edit-name {
-    opacity: 0.6;
-  }
-  .btn-edit-name:hover {
-    opacity: 1 !important;
-    transform: scale(1.15);
-  }
-  .campaign-name-input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-  }
-  .campaign-name-input {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 13.5px;
-    flex: 1;
-    max-width: 320px;
-  }
-  .campaign-name-input:focus {
-    border-color: var(--accent);
-  }
-</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -243,4 +413,3 @@
   });
 </script>
 {% endblock %}
-

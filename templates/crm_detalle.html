@@ -106,7 +106,7 @@
     <div class="info-row"><span class="k">Respondió el</span><span class="v">{{ entrada.fecha_respuesta|date:"d/m/Y H:i" }}</span></div>
 
     <!-- Accesos directos según producto -->
-    <div class="seccion-titulo" style="margin-top:20px;">Material de venta</div>
+    <div class="seccion-titulo" style="margin-top:20px;">Herramientas</div>
     <div class="accesos">
       {% if entrada.prospecto.campana.producto == 'stockmenu' %}
         <a href="{% url 'deck_stockmenu' %}" class="btn btn-secondary btn-sm" target="_blank">🎞️ Deck de ventas</a>

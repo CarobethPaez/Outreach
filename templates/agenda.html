@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Agenda{% endblock %}
+{% block page_title %}Agenda de seguimientos{% endblock %}
+{% block nav_agenda %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --bg: #080a0d;
+    --bg2: #0f1318;
+    --bg3: #161b22;
+    --border: #1f2730;
+    --accent: #00d4ff;
+    --accent2: #00a8cc;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+  }
+
+  .agenda-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .agenda-item:last-child { border-bottom: none; }
+
+  .agenda-item.vencido {
+    border-left: 3px solid var(--red);
+    background: rgba(239,68,68,.06);
+  }
+
+  .agenda-item.es-hoy {
+    border-left: 3px solid var(--yellow);
+    background: rgba(245,158,11,.06);
+  }
+
+  .agenda-info .nombre {
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .agenda-info .empresa {
+    font-size: 12.5px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+
+  .agenda-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .agenda-fecha {
+    font-size: 12.5px;
+    text-align: right;
+  }
+
+  .agenda-fecha .fecha {
+    font-weight: 600;
+  }
+
+  .agenda-item.vencido .agenda-fecha .fecha { color: var(--red); }
+  .agenda-item.es-hoy .agenda-fecha .fecha { color: var(--yellow); }
+
+  .agenda-fecha .estado-label {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  .agenda-item.vencido .agenda-fecha .estado-label { color: var(--red); }
+  .agenda-item.es-hoy .agenda-fecha .estado-label { color: var(--yellow); }
+
+  .agenda-accion {
+    font-size: 12.5px;
+    color: var(--accent);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <h1>Agenda de seguimientos</h1>
+</div>
+
+<div class="table-wrap">
+  <div class="table-header">
+    <h2>Próximas acciones (vencidas y de los próximos 7 días)</h2>
+  </div>
+
+  {% for item in items %}
+  <div class="agenda-item {% if item.vencido %}vencido{% elif item.es_hoy %}es-hoy{% endif %}">
+    <div class="agenda-info">
+      <div class="nombre">{{ item.entrada.prospecto.nombre_completo }}</div>
+      <div class="empresa">{{ item.entrada.prospecto.empresa }}</div>
+    </div>
+    <div class="agenda-meta">
+      <span class="badge badge-{{ item.entrada.prospecto.campana.producto }}">
+        {{ item.entrada.prospecto.campana.get_producto_display }}
+      </span>
+      <span class="badge badge-stockwise" style="background: rgba(0,212,255,.12); color: var(--accent);">
+        {{ item.entrada.get_etapa_display }}
+      </span>
+      <span class="agenda-accion">{{ item.entrada.get_proxima_accion_display }}</span>
+      <div class="agenda-fecha">
+        <div class="fecha">{{ item.entrada.fecha_proxima_accion|date:"d/m/Y" }}</div>
+        {% if item.vencido %}
+        <div class="estado-label">Vencido</div>
+        {% elif item.es_hoy %}
+        <div class="estado-label">Hoy</div>
+        {% endif %}
+      </div>
+      <a href="{% url 'crm_detalle' item.entrada.pk %}" class="btn btn-secondary btn-sm">Ver ficha</a>
+    </div>
+  </div>
+  {% empty %}
+  <div class="kanban-empty" style="padding: 28px;">No hay seguimientos pendientes para hoy ni los próximos 7 días.</div>
+  {% endfor %}
+</div>
+{% endblock %}

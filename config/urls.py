@@ -24,6 +24,7 @@ urlpatterns = [
     path('crm/', views.crm, name='crm'),
     path('crm/<int:pk>/', views.crm_detalle, name='crm_detalle'),
     path('crm/<int:pk>/mover/', views.crm_mover_etapa, name='crm_mover_etapa'),
+    path('agenda/', views.agenda, name='agenda'),
     path('deck/', views.deck, name='deck'),
     path('deck/descargar/', views.descargar_deck_pptx, name='descargar_deck_pptx'),
     path('ensayo/', views.ensayo, name='ensayo'),
