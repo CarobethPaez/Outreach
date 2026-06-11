@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}{{ entrada.prospecto.nombre_completo }} — CRM{% endblock %}
+{% block page_title %}Ficha de contacto{% endblock %}
+{% block nav_crm %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --bg: #080a0d;
+    --bg2: #0f1318;
+    --bg3: #161b22;
+    --border: #1f2730;
+    --accent: #00d4ff;
+    --accent2: #00a8cc;
+    --green: #10b981;
+    --yellow: #f59e0b;
+  }
+
+  .detalle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .detalle-grid { grid-template-columns: 1fr; }
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+
+  .info-row:last-child { border-bottom: none; }
+  .info-row .k { color: var(--text2); }
+  .info-row .v { font-weight: 500; text-align: right; }
+
+  .accesos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .interaccion {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+    font-size: 13px;
+  }
+
+  .interaccion:last-child { border-bottom: none; }
+
+  .interaccion .fecha {
+    color: var(--text2);
+    font-size: 11.5px;
+    margin-bottom: 3px;
+  }
+
+  .seccion-titulo {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <h1>{{ entrada.prospecto.nombre_completo }}</h1>
+  <a href="{% url 'crm' %}" class="btn btn-secondary btn-sm">← Volver al pipeline</a>
+</div>
+
+<div class="detalle-grid">
+
+  <!-- Columna izquierda: datos del prospecto -->
+  <div class="card">
+    <div class="seccion-titulo">Datos del contacto</div>
+    <div class="info-row"><span class="k">Nombre</span><span class="v">{{ entrada.prospecto.nombre_completo }}</span></div>
+    <div class="info-row"><span class="k">Cargo</span><span class="v">{{ entrada.prospecto.cargo|default:"—" }}</span></div>
+    <div class="info-row"><span class="k">Empresa</span><span class="v">{{ entrada.prospecto.empresa }}</span></div>
+    <div class="info-row"><span class="k">Industria</span><span class="v">{{ entrada.prospecto.industria|default:"—" }}</span></div>
+    <div class="info-row"><span class="k">Ciudad</span><span class="v">{{ entrada.prospecto.ciudad|default:"—" }}</span></div>
+    <div class="info-row"><span class="k">Tamaño empresa</span><span class="v">{{ entrada.prospecto.tamano_empresa|default:"—" }}</span></div>
+    <div class="info-row"><span class="k">Email</span><span class="v">{{ entrada.prospecto.email|default:"—" }}</span></div>
+    <div class="info-row"><span class="k">LinkedIn</span>
+      <span class="v">
+        {% if entrada.prospecto.linkedin_url %}
+        <a href="{{ entrada.prospecto.linkedin_url }}" target="_blank" style="color:var(--accent);">Ver perfil</a>
+        {% else %}—{% endif %}
+      </span>
+    </div>
+    <div class="info-row"><span class="k">Canal de contacto</span><span class="v">{{ entrada.prospecto.get_canal_contacto_display|default:"—" }}</span></div>
+    <div class="info-row"><span class="k">Estado respuesta</span><span class="v">{{ entrada.prospecto.get_estado_respuesta_display }}</span></div>
+    <div class="info-row"><span class="k">Producto</span>
+      <span class="v">
+        <span class="badge badge-{{ entrada.prospecto.campana.producto }}">
+          {{ entrada.prospecto.campana.get_producto_display }}
+        </span>
+      </span>
+    </div>
+    <div class="info-row"><span class="k">Campaña</span><span class="v">{{ entrada.prospecto.campana.nombre }}</span></div>
+    <div class="info-row"><span class="k">Respondió el</span><span class="v">{{ entrada.fecha_respuesta|date:"d/m/Y H:i" }}</span></div>
+
+    <!-- Accesos directos según producto -->
+    <div class="seccion-titulo" style="margin-top:20px;">Material de venta</div>
+    <div class="accesos">
+      {% if entrada.prospecto.campana.producto == 'stockmenu' %}
+        <a href="{% url 'deck_stockmenu' %}" class="btn btn-secondary btn-sm" target="_blank">🎞️ Deck de ventas</a>
+        <a href="{% url 'ensayo_stockmenu' %}" class="btn btn-secondary btn-sm" target="_blank">🥊 Ensayo objeciones</a>
+        <a href="{% url 'onboarding_stockmenu' %}" class="btn btn-secondary btn-sm" target="_blank">🚀 Onboarding</a>
+      {% else %}
+        <a href="{% url 'deck' %}" class="btn btn-secondary btn-sm" target="_blank">🎞️ Deck de ventas</a>
+        <a href="{% url 'ensayo' %}" class="btn btn-secondary btn-sm" target="_blank">🥊 Ensayo objeciones</a>
+        <a href="{% url 'onboarding' %}" class="btn btn-secondary btn-sm" target="_blank">🚀 Onboarding</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Columna derecha: pipeline + notas -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+
+    <!-- Etapa / próxima acción -->
+    <div class="card">
+      <div class="seccion-titulo">Pipeline</div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="actualizar">
+        <div class="form-group">
+          <label>Etapa</label>
+          <select name="etapa">
+            {% for val, label in etapas %}
+            <option value="{{ val }}" {% if entrada.etapa == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Próxima acción</label>
+          <select name="proxima_accion">
+            {% for val, label in acciones %}
+            <option value="{{ val }}" {% if entrada.proxima_accion == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fecha próxima acción</label>
+          <input type="date" name="fecha_proxima_accion" value="{{ entrada.fecha_proxima_accion|date:'Y-m-d' }}">
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </form>
+    </div>
+
+    <!-- Notas -->
+    <div class="card">
+      <div class="seccion-titulo">Historial de notas</div>
+      <form method="post" class="mt-1" style="margin-bottom:16px;">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="nota">
+        <div class="form-group">
+          <textarea name="texto" placeholder="Agregar nota..." style="min-height:70px;"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Agregar nota</button>
+      </form>
+
+      {% for nota in interacciones %}
+      <div class="interaccion">
+        <div class="fecha">{{ nota.creado|date:"d/m/Y H:i" }}</div>
+        <div>{{ nota.texto|linebreaksbr }}</div>
+      </div>
+      {% empty %}
+      <div class="text-muted text-sm">Sin notas todavía.</div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

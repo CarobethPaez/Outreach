@@ -1,11 +1,131 @@
 {% extends "base.html" %}
 {% block title %}CRM{% endblock %}
-{% block page_title %}CRM — Interesados{% endblock %}
+{% block page_title %}CRM — Pipeline{% endblock %}
 {% block nav_crm %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --bg: #080a0d;
+    --bg2: #0f1318;
+    --bg3: #161b22;
+    --border: #1f2730;
+    --accent: #00d4ff;
+    --accent2: #00a8cc;
+    --green: #10b981;
+    --yellow: #f59e0b;
+  }
+
+  .kanban {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(220px, 1fr));
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .kanban-col {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .kanban-col-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--accent);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .kanban-col-count {
+    background: var(--bg3);
+    border-radius: 20px;
+    padding: 1px 8px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .kanban-cards {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 60px;
+  }
+
+  .kanban-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color .15s;
+  }
+
+  .kanban-card:hover {
+    border-color: var(--accent);
+  }
+
+  .kanban-card a {
+    padding: 12px 13px;
+    text-decoration: none;
+    color: var(--text);
+    display: block;
+  }
+
+  .kanban-card .mover {
+    padding: 0 13px 12px;
+  }
+
+  .kanban-card .mover select {
+    width: 100%;
+    padding: 5px 8px;
+    font-size: 11.5px;
+    background: var(--bg2);
+  }
+
+  .kanban-card .nombre {
+    font-weight: 600;
+    font-size: 13.5px;
+  }
+
+  .kanban-card .empresa {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+
+  .kanban-card .meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+
+  .kanban-card .accion {
+    font-size: 11.5px;
+    color: var(--yellow);
+  }
+
+  .kanban-empty {
+    color: var(--text2);
+    font-size: 12px;
+    text-align: center;
+    padding: 14px 0;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-heading">
-  <h1>CRM</h1>
+  <h1>CRM — Pipeline</h1>
 </div>
 
 <!-- Stats -->
@@ -33,91 +153,48 @@
       <option value="{{ val }}" {% if filtro_producto == val %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
-    <select name="accion" onchange="this.form.submit()" style="width:auto; padding:7px 12px;">
-      <option value="">Todas las acciones</option>
-      {% for val, label in acciones %}
-      <option value="{{ val }}" {% if filtro_accion == val %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    {% if filtro_producto or filtro_accion %}
+    {% if filtro_producto %}
     <a href="{% url 'crm' %}" class="btn btn-secondary btn-sm">✕ Limpiar</a>
     {% endif %}
   </form>
 </div>
 
-<div class="table-wrap">
-  <div class="table-header">
-    <h2>Contactos <span class="text-muted text-sm">({{ entradas.count }})</span></h2>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Nombre</th>
-        <th>Empresa</th>
-        <th>Producto</th>
-        <th>Próxima acción</th>
-        <th>Notas</th>
-        <th>Respondió</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for e in entradas %}
-      <tr id="row-{{ e.pk }}">
-        <td>
-          <strong>{{ e.prospecto.nombre_completo }}</strong>
-          <div class="text-muted text-sm">{{ e.prospecto.email }}</div>
-        </td>
-        <td>{{ e.prospecto.empresa }}</td>
-        <td>
-          <span class="badge badge-{{ e.prospecto.campana.producto }}">
-            {{ e.prospecto.campana.get_producto_display }}
-          </span>
-        </td>
-        <td>
-          <select id="accion-{{ e.pk }}" style="width:auto; padding:5px 10px; font-size:13px;">
-            {% for val, label in acciones %}
-            <option value="{{ val }}" {% if e.proxima_accion == val %}selected{% endif %}>{{ label }}</option>
+<!-- Kanban -->
+<div class="kanban">
+  {% for columna in columnas %}
+  <div class="kanban-col">
+    <div class="kanban-col-header">
+      <span>{{ columna.label }}</span>
+      <span class="kanban-col-count">{{ columna.tarjetas|length }}</span>
+    </div>
+    <div class="kanban-cards">
+      {% for tarjeta in columna.tarjetas %}
+      <div class="kanban-card">
+        <a href="{% url 'crm_detalle' tarjeta.pk %}">
+          <div class="nombre">{{ tarjeta.prospecto.nombre_completo }}</div>
+          <div class="empresa">{{ tarjeta.prospecto.empresa }}</div>
+          <div class="meta">
+            <span class="badge badge-{{ tarjeta.prospecto.campana.producto }}">
+              {{ tarjeta.prospecto.campana.get_producto_display }}
+            </span>
+            <span class="accion">{{ tarjeta.get_proxima_accion_display }}</span>
+          </div>
+        </a>
+        <form method="post" action="{% url 'crm_mover_etapa' tarjeta.pk %}" class="mover">
+          {% csrf_token %}
+          <input type="hidden" name="producto" value="{{ filtro_producto }}">
+          <select name="etapa" onchange="this.form.submit()">
+            {% for val, label in tarjeta.ETAPAS %}
+            <option value="{{ val }}" {% if tarjeta.etapa == val %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
-        </td>
-        <td>
-          <textarea id="notas-{{ e.pk }}" style="min-height:50px; font-size:12.5px; padding:6px 10px;">{{ e.notas }}</textarea>
-        </td>
-        <td class="text-muted text-sm">{{ e.fecha_respuesta|date:"d/m/Y" }}</td>
-        <td>
-          <form method="post" style="display:inline;">
-            {% csrf_token %}
-            <input type="hidden" name="entrada_id" value="{{ e.pk }}">
-            <input type="hidden" name="proxima_accion" id="hidden-accion-{{ e.pk }}">
-            <input type="hidden" name="notas" id="hidden-notas-{{ e.pk }}">
-            <button type="button" class="btn btn-primary btn-sm"
-              onclick="guardarCRM({{ e.pk }}, this.closest('form'))">
-              Guardar
-            </button>
-          </form>
-        </td>
-      </tr>
+        </form>
+      </div>
       {% empty %}
-      <tr>
-        <td colspan="7" class="text-muted" style="text-align:center; padding:28px;">
-          Sin interesados todavía. Sincroniza respuestas desde las campañas.
-        </td>
-      </tr>
+      <div class="kanban-empty">Sin contactos</div>
       {% endfor %}
-    </tbody>
-  </table>
+    </div>
+  </div>
+  {% endfor %}
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-  function guardarCRM(id, form) {
-    document.getElementById('hidden-accion-' + id).value =
-      document.getElementById('accion-' + id).value;
-    document.getElementById('hidden-notas-' + id).value =
-      document.getElementById('notas-' + id).value;
-    form.submit();
-  }
-</script>
 {% endblock %}

@@ -499,16 +499,37 @@
   }
 
   async function generarEmails() {
-    document.getElementById('btn-generar').textContent = '⏳ Generando…';
-    document.getElementById('btn-generar').disabled = true;
-    log('⏳ Generando emails con Claude…');
-    const r = await fetch(`/campanas/${campanaId}/generar/`, {
-      method: 'POST',
-      headers: {'X-CSRFToken': getCookie('csrftoken')}
-    });
-    const d = await r.json();
-    log(`✅ Generados: ${d.generados} | Errores: ${d.errores.length}`);
-    if (d.errores.length) d.errores.forEach(e => log(`  ⚠ ${e}`));
+    const btn = document.getElementById('btn-generar');
+    btn.disabled = true;
+
+    let totalGenerados = 0;
+    const todosErrores = [];
+
+    while (true) {
+      btn.textContent = totalGenerados > 0
+        ? `⏳ Generando… (${totalGenerados} listos)`
+        : '⏳ Generando…';
+      log('⏳ Generando lote de emails con Claude…');
+
+      const r = await fetch(`/campanas/${campanaId}/generar/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCookie('csrftoken')}
+      });
+      const d = await r.json();
+
+      totalGenerados += d.generados;
+      if (d.errores.length) {
+        todosErrores.push(...d.errores);
+        d.errores.forEach(e => log(`  ⚠ ${e}`));
+      }
+      log(`✅ Lote listo: ${d.generados} generados`);
+
+      // Si no se generó nada en el lote (todo falló) o no quedan
+      // prospectos pendientes, se detiene el ciclo.
+      if (d.generados === 0 || !d.restantes) break;
+    }
+
+    log(`🏁 Generación completa: ${totalGenerados} emails | Errores: ${todosErrores.length}`);
     setTimeout(() => location.reload(), 1200);
   }
 

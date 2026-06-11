@@ -3,17 +3,19 @@ import io
 import json
 import logging
 from functools import wraps
+from pathlib import Path
 
 import anthropic
 import requests
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from .models import Campana, EmailGenerado, Prospecto, ProspectoCRM
+from .models import Campana, EmailGenerado, InteraccionCRM, Prospecto, ProspectoCRM
 
 logger = logging.getLogger(__name__)
 
@@ -315,6 +317,14 @@ def importar_csv(request, pk):
     })
 
 
+# Cada llamada a Claude (cuerpo + asunto) toma varios segundos. Procesar
+# todos los prospectos de una campaña en un solo request puede superar
+# el timeout de 60s del worker de Gunicorn y matar el request a medias.
+# Por eso se procesa en lotes pequeños; el frontend llama repetidamente
+# hasta que no queden prospectos pendientes.
+GENERAR_EMAILS_LOTE = 5
+
+
 @require_POST
 def generar_emails(request, pk):
     if not request.user.is_authenticated or not request.user.is_superuser:
@@ -326,12 +336,14 @@ def generar_emails(request, pk):
     # Excluir prospectos ya contactados (marcados en verde en la UI) y
     # aquellos que ya tienen un email generado por IA — no tiene sentido
     # regenerar ni volver a contactar a quien ya fue abordado.
-    prospectos_a_procesar = campana.prospectos.filter(
+    prospectos_pendientes = campana.prospectos.filter(
         contactado=False,
         email_generado__isnull=True,
     )
 
-    omitidos = total_campana - prospectos_a_procesar.count()
+    omitidos = total_campana - prospectos_pendientes.count()
+    pendientes_antes = prospectos_pendientes.count()
+    prospectos_a_procesar = list(prospectos_pendientes[:GENERAR_EMAILS_LOTE])
 
     generados = 0
     errores = []
@@ -350,8 +362,10 @@ def generar_emails(request, pk):
     campana.emails_generados = campana.prospectos.filter(estado='email_generado').count()
     campana.save(update_fields=['emails_generados'])
 
+    restantes = max(0, pendientes_antes - len(prospectos_a_procesar))
+
     mensaje = (
-        f'Generando emails para {prospectos_a_procesar.count()} prospectos. '
+        f'Procesados {len(prospectos_a_procesar)} de {pendientes_antes} prospectos pendientes. '
         f'{omitidos} prospectos ya contactados o con email ya generado fueron omitidos.'
     )
     logger.info(f'generar_emails campana={campana.pk}: {mensaje}')
@@ -359,6 +373,7 @@ def generar_emails(request, pk):
     return JsonResponse({
         'generados': generados,
         'omitidos': omitidos,
+        'restantes': restantes,
         'mensaje': mensaje,
         'errores': errores,
     })
@@ -732,42 +747,73 @@ def sincronizar_respuestas(request, pk):
 
     campana = get_object_or_404(Campana, pk=pk)
 
-    headers = {'Authorization': f'Bearer {_instantly_key()}'}
-    try:
-        resp = requests.get(
-            'https://api.instantly.ai/api/v2/replies',
-            headers=headers,
-            params={'campaign_id': campana.instantly_campaign_id},
-            timeout=15,
-        )
-        resp.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        logger.error(f'[Instantly] Error al obtener respuestas: {e}')
-        return JsonResponse({'error': f'Error de conexión con Instantly: {str(e)}'}, status=502)
-
-    try:
-        data = resp.json()
-    except (json.JSONDecodeError, ValueError):
-        return JsonResponse({'error': 'Respuesta inválida de Instantly'}, status=502)
-
     procesados = 0
-    for reply in data.get('replies', data if isinstance(data, list) else []):
-        email_addr = reply.get('from_address') or reply.get('email', '')
+    error_instantly = None
+
+    # Bloque Instantly — solo aplica si la campaña tiene campaign_id asociado.
+    if campana.instantly_campaign_id:
+        headers = {'Authorization': f'Bearer {_instantly_key()}'}
         try:
-            prospecto = campana.prospectos.get(email=email_addr)
-            prospecto.estado = 'respondio'
+            resp = requests.get(
+                'https://api.instantly.ai/api/v2/replies',
+                headers=headers,
+                params={'campaign_id': campana.instantly_campaign_id},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f'[Instantly] Error al obtener respuestas: {e}')
+            error_instantly = f'Error de conexión con Instantly: {str(e)}'
+            data = None
+        except (json.JSONDecodeError, ValueError):
+            error_instantly = 'Respuesta inválida de Instantly'
+            data = None
+
+        if data is not None:
+            for reply in data.get('replies', data if isinstance(data, list) else []):
+                email_addr = reply.get('from_address') or reply.get('email', '')
+                try:
+                    prospecto = campana.prospectos.get(email=email_addr)
+                    prospecto.estado = 'respondio'
+                    prospecto.save(update_fields=['estado'])
+                    ProspectoCRM.objects.get_or_create(prospecto=prospecto)
+                    procesados += 1
+                except Prospecto.DoesNotExist:
+                    pass
+                except Exception as e:
+                    logger.error(f'Error procesando respuesta {email_addr}: {e}')
+
+    # Prospectos marcados manualmente (vía dropdown "Estado respuesta") como
+    # interesados, que respondieron por un canal distinto a Instantly y por
+    # eso no aparecen en /v2/replies — también deben traspasarse al CRM.
+    ESTADOS_RESPUESTA_INTERES = {
+        'interesado': 'agendar_demo',
+        'agendar_demo': 'agendar_demo',
+        'pedir_mas_info': 'enviar_info',
+    }
+    interesados_manual = campana.prospectos.filter(
+        estado_respuesta__in=ESTADOS_RESPUESTA_INTERES.keys(),
+        prospectocrm__isnull=True,
+    )
+    for prospecto in interesados_manual:
+        if prospecto.estado != 'interesado':
+            prospecto.estado = 'interesado'
             prospecto.save(update_fields=['estado'])
-            ProspectoCRM.objects.get_or_create(prospecto=prospecto)
-            procesados += 1
-        except Prospecto.DoesNotExist:
-            pass
-        except Exception as e:
-            logger.error(f'Error procesando respuesta {email_addr}: {e}')
+        ProspectoCRM.objects.create(
+            prospecto=prospecto,
+            proxima_accion=ESTADOS_RESPUESTA_INTERES[prospecto.estado_respuesta],
+        )
+        procesados += 1
 
     campana.respuestas = campana.prospectos.filter(estado__in=['respondio', 'interesado']).count()
-    campana.save(update_fields=['respuestas'])
+    campana.interesados = campana.prospectos.filter(estado='interesado').count()
+    campana.save(update_fields=['respuestas', 'interesados'])
 
-    return JsonResponse({'procesados': procesados})
+    respuesta = {'procesados': procesados}
+    if error_instantly:
+        respuesta['error_instantly'] = error_instantly
+    return JsonResponse(respuesta)
 
 
 @_superuser_required
@@ -816,6 +862,21 @@ def deck(request):
     return render(request, 'deck.html')
 
 
+DECK_PPTX_PATH = Path(__file__).resolve().parent / 'files' / 'StockWise_DeckVentas_v2.pptx'
+
+
+@_superuser_required
+def descargar_deck_pptx(request):
+    if not DECK_PPTX_PATH.exists():
+        raise Http404('Deck no encontrado')
+    return FileResponse(
+        open(DECK_PPTX_PATH, 'rb'),
+        as_attachment=True,
+        filename=DECK_PPTX_PATH.name,
+        content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    )
+
+
 @_superuser_required
 def ensayo(request):
     return render(request, 'ensayo.html')
@@ -849,40 +910,76 @@ def crm(request):
     ).order_by('-fecha_respuesta')
 
     filtro_producto = request.GET.get('producto', '')
-    filtro_accion = request.GET.get('accion', '')
-
     if filtro_producto:
         entradas = entradas.filter(prospecto__campana__producto=filtro_producto)
-    if filtro_accion:
-        entradas = entradas.filter(proxima_accion=filtro_accion)
 
-    if request.method == 'POST':
-        entrada_id = request.POST.get('entrada_id')
-        entrada = get_object_or_404(ProspectoCRM, pk=entrada_id)
-        entrada.proxima_accion = request.POST.get('proxima_accion', entrada.proxima_accion)
-        entrada.notas = request.POST.get('notas', entrada.notas)
-        if request.POST.get('interesado') == '1':
-            entrada.prospecto.estado = 'interesado'
-            entrada.prospecto.save(update_fields=['estado'])
-            entrada.prospecto.campana.interesados = entrada.prospecto.campana.prospectos.filter(
-                estado='interesado'
-            ).count()
-            entrada.prospecto.campana.save(update_fields=['interesados'])
-        entrada.save()
-        messages.success(request, 'Registro actualizado.')
-        return redirect('crm')
+    tarjetas_por_etapa = {etapa_key: [] for etapa_key, _ in ProspectoCRM.ETAPAS}
+    for entrada in entradas:
+        tarjetas_por_etapa.setdefault(entrada.etapa, []).append(entrada)
 
-    total_interesados = entradas.filter(prospecto__estado='interesado').count()
-    demos_agendadas = entradas.filter(proxima_accion='agendar_demo').count()
-    clientes_cerrados = entradas.filter(proxima_accion='cerrado').count()
+    columnas = [
+        {'key': etapa_key, 'label': etapa_label, 'tarjetas': tarjetas_por_etapa[etapa_key]}
+        for etapa_key, etapa_label in ProspectoCRM.ETAPAS
+    ]
+
+    total_interesados = entradas.count()
+    demos_agendadas = entradas.filter(etapa='demo_agendada').count()
+    clientes_cerrados = entradas.filter(etapa='cliente_pagado').count()
 
     return render(request, 'crm.html', {
-        'entradas': entradas,
-        'acciones': ProspectoCRM.ACCIONES,
+        'columnas': columnas,
         'productos': Campana.PRODUCTOS,
         'filtro_producto': filtro_producto,
-        'filtro_accion': filtro_accion,
         'total_interesados': total_interesados,
         'demos_agendadas': demos_agendadas,
         'clientes_cerrados': clientes_cerrados,
+    })
+
+
+@require_POST
+@_superuser_required
+def crm_mover_etapa(request, pk):
+    entrada = get_object_or_404(ProspectoCRM, pk=pk)
+    nueva_etapa = request.POST.get('etapa', '')
+    valores_validos = [v for v, _ in ProspectoCRM.ETAPAS]
+    if nueva_etapa in valores_validos:
+        entrada.etapa = nueva_etapa
+        entrada.save(update_fields=['etapa'])
+
+    url = reverse('crm')
+    filtro_producto = request.POST.get('producto', '')
+    if filtro_producto:
+        url += f'?producto={filtro_producto}'
+    return redirect(url)
+
+
+@_superuser_required
+def crm_detalle(request, pk):
+    entrada = get_object_or_404(
+        ProspectoCRM.objects.select_related('prospecto', 'prospecto__campana'), pk=pk
+    )
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion', '')
+        if accion == 'nota':
+            texto = request.POST.get('texto', '').strip()
+            if texto:
+                InteraccionCRM.objects.create(crm=entrada, texto=texto)
+        elif accion == 'actualizar':
+            nueva_etapa = request.POST.get('etapa', '')
+            if nueva_etapa in [v for v, _ in ProspectoCRM.ETAPAS]:
+                entrada.etapa = nueva_etapa
+            nueva_accion = request.POST.get('proxima_accion', '')
+            if nueva_accion in [v for v, _ in ProspectoCRM.ACCIONES]:
+                entrada.proxima_accion = nueva_accion
+            entrada.fecha_proxima_accion = request.POST.get('fecha_proxima_accion') or None
+            entrada.save()
+            messages.success(request, 'Ficha actualizada.')
+        return redirect('crm_detalle', pk=pk)
+
+    return render(request, 'crm_detalle.html', {
+        'entrada': entrada,
+        'interacciones': entrada.interacciones.all(),
+        'acciones': ProspectoCRM.ACCIONES,
+        'etapas': ProspectoCRM.ETAPAS,
     })

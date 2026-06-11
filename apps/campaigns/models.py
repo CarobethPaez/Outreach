@@ -145,9 +145,19 @@ class ProspectoCRM(models.Model):
         ('seguimiento', 'Seguimiento'),
         ('cerrado', 'Cerrado - cliente'),
     ]
+    ETAPAS = [
+        ('respondio', 'Respondió'),
+        ('demo_agendada', 'Demo agendada'),
+        ('demo_hecha', 'Demo hecha'),
+        ('piloto_activo', 'Piloto activo'),
+        ('cliente_pagado', 'Cliente pagado'),
+        ('perdido', 'Perdido'),
+    ]
 
     prospecto = models.OneToOneField(Prospecto, on_delete=models.CASCADE)
     proxima_accion = models.CharField(max_length=30, choices=ACCIONES, default='agendar_demo')
+    etapa = models.CharField(max_length=30, choices=ETAPAS, default='respondio')
+    fecha_proxima_accion = models.DateField(null=True, blank=True)
     notas = models.TextField(blank=True)
     fecha_respuesta = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
@@ -159,3 +169,17 @@ class ProspectoCRM(models.Model):
 
     def __str__(self):
         return f"CRM: {self.prospecto.nombre_completo}"
+
+
+class InteraccionCRM(models.Model):
+    crm = models.ForeignKey(ProspectoCRM, on_delete=models.CASCADE, related_name='interacciones')
+    texto = models.TextField()
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Interacción CRM'
+        verbose_name_plural = 'Interacciones CRM'
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f"Nota para {self.crm.prospecto.nombre_completo} — {self.creado:%d/%m/%Y}"
