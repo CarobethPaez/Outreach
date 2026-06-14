@@ -91,6 +91,37 @@
   <h1>Agenda de seguimientos</h1>
 </div>
 
+<div class="table-wrap" style="margin-bottom:20px; padding:16px 20px;">
+  <div class="table-header">
+    <h2>Agregar seguimiento</h2>
+  </div>
+  <form method="post" action="{% url 'agenda_agregar_seguimiento' %}" style="margin-top:12px;">
+    {% csrf_token %}
+    <div style="display:grid;grid-template-columns:2fr 2fr 1fr auto;gap:12px;align-items:end;">
+      <div class="form-group">
+        <label>Contacto CRM *</label>
+        <select name="crm_id" required>
+          <option value="">— Seleccionar —</option>
+          {% for contacto in contactos_crm %}
+          <option value="{{ contacto.pk }}">{{ contacto.prospecto.nombre_completo }} — {{ contacto.prospecto.empresa }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Acción *</label>
+        <input type="text" name="proxima_accion" placeholder="Ej: Llamar para agendar demo" required>
+      </div>
+      <div class="form-group">
+        <label>Fecha *</label>
+        <input type="date" name="fecha_proxima_accion" required>
+      </div>
+      <div class="form-group">
+        <button type="submit" class="btn btn-primary">Agregar</button>
+      </div>
+    </div>
+  </form>
+</div>
+
 <div class="table-wrap">
   <div class="table-header">
     <h2>Próximas acciones (vencidas y de los próximos 7 días)</h2>

@@ -995,11 +995,71 @@ def crm(request):
     return render(request, 'crm.html', {
         'columnas': columnas,
         'productos': Campana.PRODUCTOS,
+        'etapas': ProspectoCRM.ETAPAS,
         'filtro_producto': filtro_producto,
         'total_interesados': total_interesados,
         'demos_agendadas': demos_agendadas,
         'clientes_cerrados': clientes_cerrados,
     })
+
+
+@require_POST
+@_superuser_required
+def crm_agregar_contacto(request):
+    nombre_completo = request.POST.get('nombre_completo', '').strip()
+    empresa = request.POST.get('empresa', '').strip()
+    cargo = request.POST.get('cargo', '').strip()
+    email = request.POST.get('email', '').strip()
+    producto = request.POST.get('producto', '')
+    etapa = request.POST.get('etapa', 'respondio')
+    proxima_accion = request.POST.get('proxima_accion', '').strip()
+    fecha_proxima_accion = request.POST.get('fecha_proxima_accion') or None
+    notas = request.POST.get('notas', '').strip()
+
+    if not nombre_completo or not empresa or producto not in dict(Campana.PRODUCTOS):
+        messages.error(request, 'Nombre completo, empresa y producto son obligatorios.')
+        return redirect('crm')
+
+    if etapa not in [v for v, _ in ProspectoCRM.ETAPAS]:
+        etapa = 'respondio'
+
+    partes = nombre_completo.split(' ', 1)
+    nombre = partes[0]
+    apellido = partes[1] if len(partes) > 1 else ''
+
+    try:
+        with transaction.atomic():
+            campana_manual, _ = Campana.objects.get_or_create(
+                nombre='Contactos manuales (CRM)',
+                producto=producto,
+                defaults={'estado': 'cerrada'},
+            )
+
+            prospecto = Prospecto.objects.create(
+                campana=campana_manual,
+                nombre=nombre,
+                apellido=apellido,
+                empresa=empresa,
+                cargo=cargo,
+                email=email,
+                estado='respondio',
+                fuente='manual',
+            )
+            campana_manual.total_prospectos = campana_manual.prospectos.count()
+            campana_manual.save(update_fields=['total_prospectos'])
+
+            ProspectoCRM.objects.create(
+                prospecto=prospecto,
+                etapa=etapa,
+                proxima_accion=proxima_accion,
+                fecha_proxima_accion=fecha_proxima_accion,
+                notas=notas,
+            )
+        messages.success(request, f'Contacto "{nombre_completo}" agregado al CRM.')
+    except Exception as e:
+        messages.error(request, f'Error al agregar contacto: {e}')
+
+    return redirect('crm')
 
 
 @require_POST
@@ -1071,7 +1131,30 @@ def agenda(request):
             'es_hoy': entrada.fecha_proxima_accion == hoy,
         })
 
+    contactos_crm = ProspectoCRM.objects.select_related('prospecto').order_by('prospecto__nombre')
+
     return render(request, 'agenda.html', {
         'items': items,
         'hoy': hoy,
+        'contactos_crm': contactos_crm,
     })
+
+
+@require_POST
+@_superuser_required
+def agenda_agregar_seguimiento(request):
+    crm_id = request.POST.get('crm_id', '')
+    proxima_accion = request.POST.get('proxima_accion', '').strip()
+    fecha_proxima_accion = request.POST.get('fecha_proxima_accion') or None
+
+    entrada = get_object_or_404(ProspectoCRM, pk=crm_id)
+
+    if not proxima_accion or not fecha_proxima_accion:
+        messages.error(request, 'Acción y fecha son obligatorias.')
+        return redirect('agenda')
+
+    entrada.proxima_accion = proxima_accion
+    entrada.fecha_proxima_accion = fecha_proxima_accion
+    entrada.save(update_fields=['proxima_accion', 'fecha_proxima_accion'])
+    messages.success(request, f'Seguimiento agendado para "{entrada.prospecto.nombre_completo}".')
+    return redirect('agenda')

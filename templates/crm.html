@@ -145,7 +145,7 @@
 </div>
 
 <!-- Filtros -->
-<div class="flex gap-2 flex-wrap" style="margin-bottom:20px;">
+<div class="flex gap-2 flex-wrap items-center" style="margin-bottom:20px; justify-content:space-between;">
   <form method="get" class="flex gap-2 flex-wrap items-center">
     <select name="producto" onchange="this.form.submit()" style="width:auto; padding:7px 12px;">
       <option value="">Todos los productos</option>
@@ -157,6 +157,70 @@
     <a href="{% url 'crm' %}" class="btn btn-secondary btn-sm">✕ Limpiar</a>
     {% endif %}
   </form>
+  <button class="btn btn-secondary" onclick="document.getElementById('modal-agregar-contacto').classList.add('open')">
+    + Agregar contacto
+  </button>
+</div>
+
+<!-- Modal agregar contacto -->
+<div class="modal-overlay" id="modal-agregar-contacto">
+  <div class="modal">
+    <h3>Agregar contacto</h3>
+    <form method="post" action="{% url 'crm_agregar_contacto' %}">
+      {% csrf_token %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>Nombre completo *</label>
+          <input type="text" name="nombre_completo" required>
+        </div>
+        <div class="form-group">
+          <label>Empresa *</label>
+          <input type="text" name="empresa" required>
+        </div>
+        <div class="form-group">
+          <label>Cargo</label>
+          <input type="text" name="cargo">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email">
+        </div>
+        <div class="form-group">
+          <label>Producto *</label>
+          <select name="producto" required>
+            <option value="">— Seleccionar —</option>
+            {% for val, label in productos %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Etapa inicial</label>
+          <select name="etapa">
+            {% for val, label in etapas %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Próxima acción</label>
+          <input type="text" name="proxima_accion" placeholder="Ej: Llamar la próxima semana">
+        </div>
+        <div class="form-group">
+          <label>Fecha próxima acción</label>
+          <input type="date" name="fecha_proxima_accion">
+        </div>
+        <div class="form-group" style="grid-column:1 / -1;">
+          <label>Notas</label>
+          <textarea name="notas" style="min-height:80px;"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-agregar-contacto').classList.remove('open')">Cancelar</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Kanban -->
