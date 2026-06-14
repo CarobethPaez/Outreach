@@ -18,7 +18,7 @@
 
   .kanban {
     display: grid;
-    grid-template-columns: repeat(6, minmax(220px, 1fr));
+    grid-template-columns: repeat(5, minmax(220px, 1fr));
     gap: 14px;
     overflow-x: auto;
     padding-bottom: 8px;
@@ -145,7 +145,7 @@
 </div>
 
 <!-- Filtros -->
-<div class="flex gap-2 flex-wrap items-center" style="margin-bottom:20px; justify-content:space-between;">
+<div class="flex gap-2 flex-wrap items-center" style="margin-bottom:20px;">
   <form method="get" class="flex gap-2 flex-wrap items-center">
     <select name="producto" onchange="this.form.submit()" style="width:auto; padding:7px 12px;">
       <option value="">Todos los productos</option>
@@ -157,7 +157,7 @@
     <a href="{% url 'crm' %}" class="btn btn-secondary btn-sm">✕ Limpiar</a>
     {% endif %}
   </form>
-  <button class="btn btn-secondary" onclick="document.getElementById('modal-agregar-contacto').classList.add('open')">
+  <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-agregar-contacto').classList.add('open')">
     + Agregar contacto
   </button>
 </div>

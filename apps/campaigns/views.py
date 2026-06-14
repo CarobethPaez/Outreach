@@ -986,6 +986,7 @@ def crm(request):
     columnas = [
         {'key': etapa_key, 'label': etapa_label, 'tarjetas': tarjetas_por_etapa[etapa_key]}
         for etapa_key, etapa_label in ProspectoCRM.ETAPAS
+        if etapa_key != 'perdido'
     ]
 
     total_interesados = entradas.count()

@@ -77,11 +77,6 @@
     🚀 Enviar a Instantly{% if emails_aprobados_no_enviados > 0 %} ({{ emails_aprobados_no_enviados }}){% endif %}
   </button>
   {% endif %}
-
-  <!-- Sincronizar respuestas -->
-  <button class="btn btn-secondary" onclick="sincronizar()">
-    🔄 Sincronizar respuestas
-  </button>
 </div>
 
 <!-- Log de operaciones -->
@@ -517,16 +512,6 @@
     const d = await r.json();
     log(`✅ Enviados: ${d.enviados} | Errores: ${d.errores.length}`);
     if (d.errores.length) d.errores.forEach(e => log(`  ⚠ ${e}`));
-    setTimeout(() => location.reload(), 1200);
-  }
-
-  async function sincronizar() {
-    log('⏳ Sincronizando respuestas…');
-    const r = await fetch(`/campanas/${campanaId}/sincronizar/`, {
-      headers: {'X-CSRFToken': getCookie('csrftoken')}
-    });
-    const d = await r.json();
-    log(`✅ Respuestas procesadas: ${d.procesados}`);
     setTimeout(() => location.reload(), 1200);
   }
 
