@@ -3,7 +3,7 @@ from django.db.models import Q
 
 
 class Campana(models.Model):
-    PRODUCTOS = [('stockwise', 'StockWise'), ('stockmenu', 'StockMenu')]
+    PRODUCTOS = [('stockwise', 'StockWise')]
     ESTADOS = [
         ('borrador', 'Borrador'),
         ('activa', 'Activa'),

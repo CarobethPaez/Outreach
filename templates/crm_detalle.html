@@ -105,18 +105,11 @@
     <div class="info-row"><span class="k">Campaña</span><span class="v">{{ entrada.prospecto.campana.nombre }}</span></div>
     <div class="info-row"><span class="k">Respondió el</span><span class="v">{{ entrada.fecha_respuesta|date:"d/m/Y H:i" }}</span></div>
 
-    <!-- Accesos directos según producto -->
+    <!-- Accesos directos -->
     <div class="seccion-titulo" style="margin-top:20px;">Herramientas</div>
     <div class="accesos">
-      {% if entrada.prospecto.campana.producto == 'stockmenu' %}
-        <a href="{% url 'deck_stockmenu' %}" class="btn btn-secondary btn-sm" target="_blank">🎞️ Deck de ventas</a>
-        <a href="{% url 'ensayo_stockmenu' %}" class="btn btn-secondary btn-sm" target="_blank">🥊 Ensayo objeciones</a>
-        <a href="{% url 'onboarding_stockmenu' %}" class="btn btn-secondary btn-sm" target="_blank">🚀 Onboarding</a>
-      {% else %}
-        <a href="{% url 'deck' %}" class="btn btn-secondary btn-sm" target="_blank">🎞️ Deck de ventas</a>
-        <a href="{% url 'ensayo' %}" class="btn btn-secondary btn-sm" target="_blank">🥊 Ensayo objeciones</a>
-        <a href="{% url 'onboarding' %}" class="btn btn-secondary btn-sm" target="_blank">🚀 Onboarding</a>
-      {% endif %}
+      <a href="{% url 'ensayo' %}" class="btn btn-secondary btn-sm" target="_blank">🥊 Ensayo objeciones</a>
+      <a href="{% url 'onboarding' %}" class="btn btn-secondary btn-sm" target="_blank">🚀 Onboarding</a>
     </div>
   </div>
 

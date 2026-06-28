@@ -4,14 +4,13 @@ import io
 import json
 import logging
 from functools import wraps
-from pathlib import Path
 
 import anthropic
 import requests
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -28,7 +27,6 @@ def _instantly_key():
 
 
 PRECIO_STOCKWISE_CLP = 115_000
-PRECIO_STOCKMENU_CLP = 45_000
 
 # Orden de etapas del pipeline para el funnel del dashboard. "perdido" no
 # forma parte del funnel de conversión (se cuenta aparte si hace falta).
@@ -95,7 +93,6 @@ def dashboard(request):
 
     funnel_global = _funnel_data()
     funnel_stockwise = _funnel_data('stockwise')
-    funnel_stockmenu = _funnel_data('stockmenu')
 
     hoy = timezone.now().date()
     inicio_semana = hoy - datetime.timedelta(days=hoy.weekday())
@@ -105,14 +102,8 @@ def dashboard(request):
         fecha_proxima_accion__range=[inicio_semana, fin_semana],
     ).count()
 
-    mrr_actual = (
-        funnel_stockwise['clientes_pagados'] * PRECIO_STOCKWISE_CLP
-        + funnel_stockmenu['clientes_pagados'] * PRECIO_STOCKMENU_CLP
-    )
-    mrr_potencial = (
-        funnel_stockwise['pilotos_activos'] * PRECIO_STOCKWISE_CLP
-        + funnel_stockmenu['pilotos_activos'] * PRECIO_STOCKMENU_CLP
-    )
+    mrr_actual = funnel_stockwise['clientes_pagados'] * PRECIO_STOCKWISE_CLP
+    mrr_potencial = funnel_stockwise['pilotos_activos'] * PRECIO_STOCKWISE_CLP
 
     return render(request, 'dashboard.html', {
         'campanas': campanas,
@@ -122,9 +113,8 @@ def dashboard(request):
         'tasa_respuesta_global': tasa_respuesta_global,
         'funnel_global': funnel_global,
         'funnel_stockwise': funnel_stockwise,
-        'funnel_stockmenu': funnel_stockmenu,
         'demos_agendadas_semana': demos_agendadas_semana,
-        'pilotos_activos': funnel_stockwise['pilotos_activos'] + funnel_stockmenu['pilotos_activos'],
+        'pilotos_activos': funnel_stockwise['pilotos_activos'],
         'mrr_actual': mrr_actual,
         'mrr_potencial': mrr_potencial,
     })
@@ -448,47 +438,23 @@ def generar_emails(request, pk):
 def _generar_email_claude(prospecto, campana):
     cliente = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    if campana.producto == 'stockwise':
-        prompt_cuerpo = (
-            f"Redacta un email de prospección B2B en español para {prospecto.nombre} {prospecto.apellido}, "
-            f"{prospecto.cargo} en {prospecto.empresa} ({prospecto.industria}, {prospecto.ciudad}). "
-            f"Producto: StockWise — plataforma SaaS chilena que automatiza la gestión de inventario con IA. "
-            f"El agente detecta escasez, contacta proveedores, negocia precios y genera órdenes de compra. "
-            f"El cliente solo aprueba. Planes desde UF 3/mes. Trial gratis 7 días. "
-            f"Tono: {campana.get_tono_display()}. Máximo 120 palabras. Sin asunto — solo el cuerpo. "
-            f"CTA: proponer 15 minutos para mostrar el agente en acción. "
-            f"URL: https://www.stock-wise.cloud "
-            f"NO mencionar que es generado por IA. NO usar frases genéricas. "
-            f"Cierra el email con esta firma exacta, respetando los saltos de línea:\n\n"
-            f"Saludos,\n\n"
-            f"Carolina Páez López\n"
-            f"Creadora de StockWise\n"
-            f"soporte@stock-wise.cloud\n"
-            f"www.stock-wise.cloud"
-        )
-    else:
-        prompt_cuerpo = (
-            f"Redacta un email de prospección B2B en español para {prospecto.nombre} {prospecto.apellido}, "
-            f"{prospecto.cargo} en {prospecto.empresa}. "
-            f"{'Ubicación: ' + prospecto.ciudad + '.' if prospecto.ciudad else ''} "
-            f"Producto: StockMenu — SaaS chileno para restaurantes y cafeterías. "
-            f"Controla el stock de insumos en tiempo real, descuenta automáticamente con cada venta, "
-            f"avisa por WhatsApp cuando algo está por agotarse, y emite boletas electrónicas al SII. "
-            f"Plan Básico $29.990/mes. Plan Pro $39.990/mes. Sin contrato de permanencia. "
-            f"Tono: {campana.get_tono_display()}. Máximo 100 palabras. Sin asunto — solo el cuerpo. "
-            f"Personaliza mencionando el tipo de negocio ({prospecto.empresa}) de forma natural. "
-            f"El dolor principal que resuelve: dejar de perder plata por sobrestock o quiebres de stock. "
-            f"CTA: proponer 15 minutos para mostrar el sistema en acción con datos reales. "
-            f"URL: https://stock-menu.com "
-            f"NO mencionar que es generado por IA. NO usar frases genéricas como 'espero que estés bien'. "
-            f"NO usar signos de exclamación. Escribir como persona real, no como vendedor. "
-            f"Cierra el email con esta firma exacta, respetando los saltos de línea:\n\n"
-            f"Saludos,\n\n"
-            f"Carolina Páez\n"
-            f"Creadora de StockMenu\n"
-            f"soporte@stock-menu.com\n"
-            f"stock-menu.com"
-        )
+    prompt_cuerpo = (
+        f"Redacta un email de prospección B2B en español para {prospecto.nombre} {prospecto.apellido}, "
+        f"{prospecto.cargo} en {prospecto.empresa} ({prospecto.industria}, {prospecto.ciudad}). "
+        f"Producto: StockWise — plataforma SaaS chilena que automatiza la gestión de inventario con IA. "
+        f"El agente detecta escasez, contacta proveedores, negocia precios y genera órdenes de compra. "
+        f"El cliente solo aprueba. Planes desde UF 3/mes. Trial gratis 7 días. "
+        f"Tono: {campana.get_tono_display()}. Máximo 120 palabras. Sin asunto — solo el cuerpo. "
+        f"CTA: proponer 15 minutos para mostrar el agente en acción. "
+        f"URL: https://www.stock-wise.cloud "
+        f"NO mencionar que es generado por IA. NO usar frases genéricas. "
+        f"Cierra el email con esta firma exacta, respetando los saltos de línea:\n\n"
+        f"Saludos,\n\n"
+        f"Carolina Páez López\n"
+        f"Creadora de StockWise\n"
+        f"soporte@stock-wise.cloud\n"
+        f"www.stock-wise.cloud"
+    )
 
     resp_cuerpo = cliente.messages.create(
         model='claude-sonnet-4-5',
@@ -924,26 +890,6 @@ def test_instantly(request):
 
 
 @_superuser_required
-def deck(request):
-    return render(request, 'deck.html')
-
-
-DECK_PPTX_PATH = Path(__file__).resolve().parent / 'files' / 'StockWise_DeckVentas_v2.pptx'
-
-
-@_superuser_required
-def descargar_deck_pptx(request):
-    if not DECK_PPTX_PATH.exists():
-        raise Http404('Deck no encontrado')
-    return FileResponse(
-        open(DECK_PPTX_PATH, 'rb'),
-        as_attachment=True,
-        filename=DECK_PPTX_PATH.name,
-        content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    )
-
-
-@_superuser_required
 def ensayo(request):
     return render(request, 'ensayo.html')
 
@@ -951,21 +897,6 @@ def ensayo(request):
 @_superuser_required
 def onboarding(request):
     return render(request, 'onboarding.html')
-
-
-@_superuser_required
-def deck_stockmenu(request):
-    return render(request, 'deck_stockmenu.html')
-
-
-@_superuser_required
-def ensayo_stockmenu(request):
-    return render(request, 'ensayo_stockmenu.html')
-
-
-@_superuser_required
-def onboarding_stockmenu(request):
-    return render(request, 'onboarding_stockmenu.html')
 
 
 @_superuser_required

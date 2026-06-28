@@ -227,7 +227,6 @@
     .badge-pausada { background: rgba(234,179,8,.15); color: var(--yellow); }
     .badge-cerrada { background: rgba(239,68,68,.15); color: var(--red); }
     .badge-stockwise { background: rgba(124,108,252,.15); color: var(--accent); }
-    .badge-stockmenu { background: rgba(59,130,246,.15); color: var(--blue); }
 
     /* Buttons */
     .btn {
@@ -366,7 +365,7 @@
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="brand">Outreach</div>
-    <div class="sub">StockWise · StockMenu</div>
+    <div class="sub">StockWise</div>
   </div>
   <nav>
     <a href="{% url 'dashboard' %}" class="{% block nav_dashboard %}{% endblock %}">
@@ -382,23 +381,10 @@
       <span class="nav-icon">📅</span> Agenda
     </a>
     <div style="margin: 12px 12px 6px; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--text2); font-weight:600;">StockWise</div>
-    <a href="{% url 'deck' %}" class="{% block nav_deck %}{% endblock %}">
-      <span class="nav-icon">🎞️</span> Deck de ventas
-    </a>
     <a href="{% url 'ensayo' %}" class="{% block nav_ensayo %}{% endblock %}">
       <span class="nav-icon">🥊</span> Ensayo objeciones
     </a>
     <a href="{% url 'onboarding' %}" class="{% block nav_onboarding %}{% endblock %}">
-      <span class="nav-icon">🚀</span> Onboarding
-    </a>
-    <div style="margin: 12px 12px 6px; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--text2); font-weight:600;">StockMenu</div>
-    <a href="{% url 'deck_stockmenu' %}" class="{% block nav_deck_sm %}{% endblock %}">
-      <span class="nav-icon">🍽️</span> Deck de ventas
-    </a>
-    <a href="{% url 'ensayo_stockmenu' %}" class="{% block nav_ensayo_sm %}{% endblock %}">
-      <span class="nav-icon">🥊</span> Ensayo objeciones
-    </a>
-    <a href="{% url 'onboarding_stockmenu' %}" class="{% block nav_onboarding_sm %}{% endblock %}">
       <span class="nav-icon">🚀</span> Onboarding
     </a>
   </nav>
