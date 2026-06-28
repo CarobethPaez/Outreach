@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockWise — Deck de ventas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #080a0d;
+    --surface: #0f1218;
+    --surface2: #161b24;
+    --border: #1e2530;
+    --cyan: #00d4ff;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --text: #e8edf5;
+    --muted: #64748b;
+    --dim: #334155;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    overflow: hidden;
+  }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(8,10,13,0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 52px;
+  }
+  .nav-logo { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: var(--cyan); }
+  .nav-prospect { font-size: 13px; color: var(--muted); }
+  .nav-prospect span { color: var(--text); font-weight: 500; }
+  .nav-slides { display: flex; gap: 6px; align-items: center; }
+  .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); cursor: pointer; transition: background 0.2s; }
+  .nav-dot.active { background: var(--cyan); width: 18px; border-radius: 3px; }
+
+  .progress-bar { position: fixed; top: 52px; left: 0; right: 0; height: 2px; background: var(--border); z-index: 99; }
+  .progress-fill { height: 100%; background: var(--cyan); transition: width 0.35s ease; }
+
+  .slides-container {
+    position: fixed;
+    top: 54px; left: 0; right: 0; bottom: 0;
+    overflow: hidden;
+  }
+
+  .slide {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+    padding: 5.5rem 2.5rem 2rem;
+  }
+  .slide.active { display: flex; flex-direction: column; justify-content: flex-start; }
+
+  .slide-inner { max-width: 900px; margin: 0 auto; width: 100%; }
+
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cyan); margin-bottom: 1.25rem; }
+  .slide-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.5rem; }
+
+  .hero-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(2.2rem, 4.5vw, 3.5rem);
+    font-weight: 700; line-height: 1.1; letter-spacing: -0.03em;
+    margin-bottom: 1.25rem;
+  }
+  .hero-title em { color: var(--cyan); font-style: normal; }
+
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(1.6rem, 3vw, 2.25rem);
+    font-weight: 700; line-height: 1.15; letter-spacing: -0.025em;
+    margin-bottom: 0.875rem;
+  }
+
+  .hero-sub, .section-sub { font-size: 17px; color: var(--muted); margin-bottom: 2.5rem; max-width: 560px; }
+  .hero-sub { margin-bottom: 2.5rem; }
+
+  .hero-stats { display: flex; gap: 2.5rem; flex-wrap: wrap; }
+  .stat-num { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; color: var(--cyan); line-height: 1; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .pain-item { background: var(--surface); padding: 1.5rem; }
+  .pain-icon { font-size: 20px; margin-bottom: 0.875rem; }
+  .pain-title { font-weight: 600; font-size: 14px; margin-bottom: 0.5rem; }
+  .pain-desc { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  .dashboard-mock { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 1.5rem; }
+  .dash-header { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 0.625rem 1rem; display: flex; align-items: center; gap: 6px; }
+  .dash-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .dash-url { font-size: 11px; color: var(--muted); margin-left: 8px; font-family: monospace; }
+  .dash-body { padding: 1.25rem; }
+  .dash-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .dash-metric { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.875rem; }
+  .dash-metric-val { font-family: 'Space Grotesk', sans-serif; font-size: 1.625rem; font-weight: 700; line-height: 1; }
+  .dash-metric-label { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .dash-alerts { display: flex; flex-direction: column; gap: 6px; }
+  .alert-row { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 0.75rem 0.875rem; }
+  .alert-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+  .badge-critica { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-alta { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .alert-name { font-size: 13px; font-weight: 500; flex: 1; }
+  .alert-meta { font-size: 12px; color: var(--muted); }
+  .alert-days { font-size: 13px; font-weight: 600; color: var(--red); }
+
+  .flow-steps { display: flex; flex-direction: column; gap: 0; position: relative; }
+  .flow-step { display: flex; gap: 1.25rem; padding: 1.125rem 0; position: relative; }
+  .flow-step:not(:last-child)::after { content: ''; position: absolute; left: 19px; top: 48px; width: 1px; bottom: 0; background: var(--border); }
+  .flow-num { width: 38px; height: 38px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--cyan); flex-shrink: 0; }
+  .flow-content { flex: 1; padding-top: 6px; }
+  .flow-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .flow-desc { font-size: 13px; color: var(--muted); }
+  .flow-tag { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
+  .tag-auto { background: rgba(0,212,255,0.1); color: var(--cyan); }
+  .tag-human { background: rgba(16,185,129,0.12); color: var(--green); }
+
+  .nego-demo { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 1.5rem; }
+  .nego-header { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+  .nego-title-sm { font-size: 13px; font-weight: 600; }
+  .nego-status { font-size: 11px; color: var(--cyan); font-weight: 600; letter-spacing: 0.06em; }
+  .nego-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 10px; }
+  .nego-row { display: flex; align-items: flex-start; gap: 10px; }
+  .nego-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+  .avatar-proveedor { background: rgba(100,116,139,0.2); color: var(--muted); }
+  .avatar-agente { background: rgba(0,212,255,0.15); color: var(--cyan); }
+  .nego-bubble { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 0.75rem 0.875rem; flex: 1; }
+  .nego-bubble-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; font-weight: 500; }
+  .nego-bubble-text { font-size: 13px; line-height: 1.5; }
+  .nego-bubble-price { font-family: 'Space Grotesk', sans-serif; font-size: 1.05rem; font-weight: 700; margin-top: 4px; }
+  .price-high { color: var(--red); }
+  .price-ok { color: var(--green); }
+  .nego-reasoning { background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.15); border-radius: 7px; padding: 0.625rem 0.875rem; margin-top: 6px; }
+  .nego-reasoning-label { font-size: 10px; color: var(--cyan); font-weight: 600; margin-bottom: 3px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .nego-reasoning-text { font-size: 12px; color: var(--muted); font-style: italic; }
+
+  .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 2rem; }
+  .control-card { background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 1.5rem; }
+  .control-card.highlight { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.04); }
+  .control-icon { font-size: 20px; margin-bottom: 0.75rem; }
+  .control-title { font-weight: 600; font-size: 14px; margin-bottom: 0.375rem; }
+  .control-desc { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  .saving-display { text-align: center; padding: 2rem 0 1.5rem; }
+  .saving-label { font-size: 12px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.75rem; }
+  .saving-amount { font-family: 'Space Grotesk', sans-serif; font-size: clamp(2.75rem, 7vw, 4.5rem); font-weight: 700; color: var(--green); letter-spacing: -0.03em; line-height: 1; }
+  .saving-sub { font-size: 13px; color: var(--muted); margin-top: 0.75rem; }
+  .saving-breakdown { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 2rem; }
+  .saving-item { background: var(--surface); padding: 1.125rem; text-align: center; }
+  .saving-item-val { font-family: 'Space Grotesk', sans-serif; font-size: 1.25rem; font-weight: 700; }
+  .saving-item-label { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .pilot-box { background: var(--surface); border: 1px solid rgba(0,212,255,0.2); border-radius: 12px; padding: 2rem; margin-top: 1.75rem; }
+  .pilot-items { display: flex; flex-direction: column; gap: 1rem; }
+  .pilot-item { display: flex; align-items: flex-start; gap: 0.875rem; }
+  .pilot-check { width: 22px; height: 22px; border-radius: 50%; background: rgba(16,185,129,0.15); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+  .pilot-text { font-size: 14px; }
+  .pilot-text strong { color: var(--text); font-weight: 600; }
+  .pilot-text span { color: var(--muted); }
+  .pilot-cta { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+  .pilot-question { font-family: 'Space Grotesk', sans-serif; font-size: 1.125rem; font-weight: 700; color: var(--cyan); }
+
+  .slide-footer { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .slide-footer-brand { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--cyan); }
+  .slide-footer-num { font-size: 12px; color: var(--dim); }
+
+  .nav-arrows { position: fixed; bottom: 1.5rem; right: 2rem; display: flex; gap: 8px; z-index: 100; }
+  .nav-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 40px; height: 40px; border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .nav-btn:hover { background: var(--surface2); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+</style>
+</head>
+<body>
+
+<!--
+  ════════════════════════════════════════════════════════════════════════
+  PERSONALIZACIÓN — edita estas 3 variables antes de enviar el deck.
+  Se inyectan automáticamente en el nav y en las slides 2 y 8.
+  ════════════════════════════════════════════════════════════════════════
+-->
+<script>
+  const PROSPECTO_NOMBRE = "Prospecto";
+  const PROSPECTO_EMPRESA = "Empresa";
+  const PROSPECTO_RUBRO = "tu industria";
+</script>
+
+<nav>
+  <div class="nav-logo">StockWise</div>
+  <div class="nav-prospect">Demo para <span id="navProspecto"></span></div>
+  <div class="nav-slides" id="navDots"></div>
+</nav>
+
+<div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:12.5%"></div></div>
+
+<div class="slides-container">
+
+  <!-- SLIDE 1: HERO -->
+  <div class="slide active" id="s0">
+    <div class="slide-inner">
+      <div class="eyebrow">StockWise · Presentación demo</div>
+      <h1 class="hero-title">El agente que negocia<br><em>por ti</em>, mientras<br>tú apruebas.</h1>
+      <p class="hero-sub">Control de inventario con IA para empresas que no pueden permitirse un quiebre de stock.</p>
+      <div class="hero-stats">
+        <div class="stat"><div class="stat-num">6h</div><div class="stat-label">Ciclo de monitoreo automático</div></div>
+        <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Aprobación humana en cada OC</div></div>
+        <div class="stat"><div class="stat-num">0</div><div class="stat-label">Compras sin tu autorización</div></div>
+      </div>
+      <div class="slide-footer"><div class="slide-footer-brand">StockWise</div><div class="slide-footer-num">01 / 08</div></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: EL DOLOR -->
+  <div class="slide" id="s1">
+    <div class="slide-inner">
+      <div class="slide-label">El problema</div>
+      <h2 class="section-title">Cuando el stock falla,<br>la operación para.</h2>
+      <p class="section-sub">En operaciones de <span id="rubroSub1"></span>, el costo de una detención supera con creces el costo del insumo.</p>
+      <div class="pain-grid">
+        <div class="pain-item">
+          <div class="pain-icon">⏱</div>
+          <div class="pain-title">Te enteras tarde</div>
+          <div class="pain-desc">El stock llega a cero antes de que el sistema te avise. La revisión manual siempre va un paso atrás.</div>
+        </div>
+        <div class="pain-item">
+          <div class="pain-icon">📋</div>
+          <div class="pain-title">Cotizaciones que demoran días</div>
+          <div class="pain-desc">Cada solicitud de cotización es un email manual. Negociar precio toma tiempo cuando debería tomar minutos.</div>
+        </div>
+        <div class="pain-item">
+          <div class="pain-icon">🏗</div>
+          <div class="pain-title">Sin visibilidad entre bodegas</div>
+          <div class="pain-desc">Múltiples proyectos o sucursales con stocks distintos. Hoy no hay un lugar donde ver el estado de todos de un vistazo.</div>
+        </div>
+      </div>
+      <div class="slide-footer"><div class="slide-footer-brand">StockWise</div><div class="slide-footer-num">02 / 08</div></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: DASHBOARD -->
+  <div class="slide" id="s2">
+    <div class="slide-inner">
+      <div class="slide-label">Vista en tiempo real</div>
+      <h2 class="section-title">Todo el inventario crítico,<br>en un dashboard.</h2>
+      <div class="dashboard-mock">
+        <div class="dash-header">
+          <div class="dash-dot" style="background:#ef4444"></div>
+          <div class="dash-dot" style="background:#f59e0b"></div>
+          <div class="dash-dot" style="background:#10b981"></div>
+          <div class="dash-url">stock-wise.cloud/dashboard/</div>
+        </div>
+        <div class="dash-body">
+          <div class="dash-metrics">
+            <div class="dash-metric"><div class="dash-metric-val" style="color:var(--cyan)">X hrs</div><div class="dash-metric-label">Ahorradas este mes</div></div>
+            <div class="dash-metric"><div class="dash-metric-val" style="color:var(--green)">X</div><div class="dash-metric-label">Quiebres evitados</div></div>
+            <div class="dash-metric"><div class="dash-metric-val" style="color:var(--amber)">X</div><div class="dash-metric-label">OCs en borrador</div></div>
+          </div>
+          <div class="dash-alerts">
+            <div class="alert-row"><div class="alert-badge badge-critica">CRÍTICA</div><div class="alert-name">Insumo crítico A</div><div class="alert-meta">Bodega Principal</div><div class="alert-days">2d</div></div>
+            <div class="alert-row"><div class="alert-badge badge-critica">CRÍTICA</div><div class="alert-name">Materia prima B</div><div class="alert-meta">Bodega Secundaria</div><div class="alert-days">4d</div></div>
+            <div class="alert-row"><div class="alert-badge badge-alta">ALTA</div><div class="alert-name">Repuesto C</div><div class="alert-meta">Bodega Principal</div><div class="alert-days">6d</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><div class="slide-footer-brand">StockWise</div><div class="slide-footer-num">03 / 08</div></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: FLUJO -->
+  <div class="slide" id="s3">
+    <div class="slide-inner">
+      <div class="slide-label">Cómo funciona</div>
+      <h2 class="section-title">Del quiebre detectado<br>a la OC aprobada.</h2>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-content">
+            <div class="flow-title">Monitoreo automático cada 6 horas</div>
+            <div class="flow-desc">El agente revisa el stock en todas las bodegas y detecta cuáles están bajo umbral crítico.</div>
+            <span class="flow-tag tag-auto">Automático</span>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-content">
+            <div class="flow-title">RFQ enviada automáticamente al proveedor</div>
+            <div class="flow-desc">El agente redacta y envía la solicitud de cotización. El proveedor recibe el email en segundos.</div>
+            <span class="flow-tag tag-auto">Automático</span>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-content">
+            <div class="flow-title">El agente evalúa y negocia</div>
+            <div class="flow-desc">Si el precio ofertado supera el rango aceptable, StockWise contraoferta automáticamente con argumentos concretos.</div>
+            <span class="flow-tag tag-auto">IA negocia</span>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div class="flow-content">
+            <div class="flow-title">Tú apruebas o rechazas la OC</div>
+            <div class="flow-desc">La orden queda en BORRADOR. Ninguna compra se ejecuta sin tu autorización.</div>
+            <span class="flow-tag tag-human">Decisión humana</span>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><div class="slide-footer-brand">StockWise</div><div class="slide-footer-num">04 / 08</div></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: NEGOCIACION -->
+  <div class="slide" id="s4">
+    <div class="slide-inner">
+      <div class="slide-label">La negociación en acción</div>
+      <h2 class="section-title">StockWise negocia.<br>Tú decides.</h2>
+      <div class="nego-demo">
+        <div class="nego-header">
+          <div class="nego-title-sm">Cotización — Insumo crítico</div>
+          <div class="nego-status">● EN NEGOCIACIÓN</div>
+        </div>
+        <div class="nego-body">
+          <div class="nego-row">
+            <div class="nego-avatar avatar-proveedor">PR</div>
+            <div class="nego-bubble">
+              <div class="nego-bubble-label">Proveedor · Oferta inicial</div>
+              <div class="nego-bubble-text">Estimados, adjunto cotización según su solicitud.</div>
+              <div class="nego-bubble-price price-high">$1.200.000 CLP <span style="font-size:12px;font-weight:400;color:var(--muted)">(+20% sobre referencia)</span></div>
+            </div>
+          </div>
+          <div class="nego-row">
+            <div class="nego-avatar avatar-agente">IA</div>
+            <div class="nego-bubble">
+              <div class="nego-bubble-label">Agente StockWise · Contraoferta automática</div>
+              <div class="nego-bubble-text">Hemos revisado su cotización. El precio supera en un 20% nuestro valor de referencia. Le solicitamos revisar su oferta.</div>
+              <div class="nego-bubble-price price-ok">$1.100.000 CLP</div>
+              <div class="nego-reasoning">
+                <div class="nego-reasoning-label">Razonamiento del agente</div>
+                <div class="nego-reasoning-text">"La diferencia de +20% supera el umbral aceptable. Corresponde contraofertar según las reglas establecidas."</div>
+              </div>
+            </div>
+          </div>
+          <div class="nego-row">
+            <div class="nego-avatar avatar-proveedor">PR</div>
+            <div class="nego-bubble">
+              <div class="nego-bubble-label">Proveedor · Contraoferta aceptada</div>
+              <div class="nego-bubble-text">Aceptamos ajustar el precio considerando el volumen y la relación comercial.</div>
+              <div class="nego-bubble-price price-ok">$1.050.000 CLP <span style="font-size:12px;font-weight:400;color:var(--muted)">(+5% — ACEPTADO)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><div class="slide-footer-brand">StockWise</div><div class="slide-footer-num">05 / 08</div></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: CONTROL -->
+  <div class="slide" id="s5">
+    <div class="slide-inner">
+      <div class="slide-label">Gobernanza</div>
+      <h2 class="section-title">Automatización con<br>control total.</h2>
+      <p class="section-sub">Diseñado para empresas con estándares internacionales. Ninguna compra se ejecuta sola.</p>
+      <div class="control-grid">
+        <div class="control-card highlight">
+          <div class="control-icon">✅</div>
+          <div class="control-title">OC siempre en BORRADOR</div>
+          <div class="control-desc">El agente detecta, negocia y propone. La OC espera tu aprobación antes de ejecutarse — sin excepciones.</div>
+        </div>
+        <div class="control-card">
+          <div class="control-icon">📧</div>
+          <div class="control-title">Notificación en tiempo real</div>
+          <div class="control-desc">Recibes un email con cada OC lista para aprobar, con el precio negociado y el ahorro obtenido.</div>
+        </div>
+        <div class="control-card">
+          <div class="control-icon">🔀</div>
+          <div class="control-title">Complementa tu ERP</div>
+          <div class="control-desc">StockWise actúa donde el ERP corporativo no llega: monitoreo cada 6h, por bodega, con negociación local automatizada.</div>
+        </div>
+        <div class="control-card">
+          <div class="control-icon">📊</div>
+          <div class="control-title">Historial completo</div>
+          <div class="control-desc">Cada negociación queda registrada con su razonamiento, precios y resultado. Trazabilidad total para auditorías.</div>
+        </div>
+      </div>
+      <div class="slide-footer"><div class="slide-footer-brand">StockWise</div><div class="slide-footer-num">06 / 08</div></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: AHORRO -->
+  <div class="slide" id="s6">
+    <div class="slide-inner">
+      <div class="slide-label">Resultado</div>
+      <h2 class="section-title">Una negociación.<br>Un ahorro real.</h2>
+      <div class="saving-display">
+        <div class="saving-label">Ahorro en una sola negociación automatizada</div>
+        <div class="saving-amount">$150.000</div>
+        <div class="saving-sub">En una sola negociación automatizada — sin intervención humana hasta la aprobación final.</div>
+      </div>
+      <div class="saving-breakdown">
+        <div class="saving-item"><div class="saving-item-val" style="color:var(--red)">$1.200.000</div><div class="saving-item-label">Precio inicial</div></div>
+        <div class="saving-item"><div class="saving-item-val" style="color:var(--green)">$1.050.000</div><div class="saving-item-label">Precio final negociado</div></div>
+        <div class="saving-item"><div class="saving-item-val" style="color:var(--cyan)">$150.000</div><div class="saving-item-label">Ahorro obtenido</div></div>
+      </div>
+      <div class="slide-footer"><div class="slide-footer-brand">StockWise</div><div class="slide-footer-num">07 / 08</div></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: PILOTO -->
+  <div class="slide" id="s7">
+    <div class="slide-inner">
+      <div class="slide-label">Propuesta</div>
+      <h2 class="section-title">Piloto de 30 días,<br>sin costo.</h2>
+      <div class="pilot-box">
+        <div class="pilot-items">
+          <div class="pilot-item"><div class="pilot-check">✓</div><div class="pilot-text"><strong>1 proyecto acotado</strong> <span>— el proyecto o bodega que prefieras</span></div></div>
+          <div class="pilot-item"><div class="pilot-check">✓</div><div class="pilot-text"><strong>1 categoría de insumos críticos</strong> <span>— acotado a una categoría crítica de <span id="rubroSlide8"></span></span></div></div>
+          <div class="pilot-item"><div class="pilot-check">✓</div><div class="pilot-text"><strong>30 días de operación real</strong> <span>— datos reales, alertas reales, negociaciones reales</span></div></div>
+          <div class="pilot-item"><div class="pilot-check">✓</div><div class="pilot-text"><strong>Implementación en menos de 1 día</strong> <span>— importamos tu inventario desde Excel, sin fricción</span></div></div>
+          <div class="pilot-item"><div class="pilot-check">✓</div><div class="pilot-text"><strong>Sin costo durante el piloto</strong> <span>— evalúas con datos reales antes de decidir</span></div></div>
+        </div>
+        <div class="pilot-cta">
+          <div class="pilot-question">¿Cuántos insumos críticos tienen hoy bajo umbral en esa bodega?</div>
+        </div>
+      </div>
+      <div class="slide-footer"><div class="slide-footer-brand">StockWise</div><div class="slide-footer-num">08 / 08</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="nav-arrows">
+  <button class="nav-btn" id="prevBtn" onclick="goTo(current-1)" disabled>←</button>
+  <button class="nav-btn" id="nextBtn" onclick="goTo(current+1)">→</button>
+</div>
+
+<script>
+  // Inyectar variables de personalización en el DOM
+  document.getElementById('navProspecto').innerHTML =
+    PROSPECTO_NOMBRE + ' · <span>' + PROSPECTO_EMPRESA + '</span>';
+  document.getElementById('rubroSub1').textContent = PROSPECTO_RUBRO;
+  document.getElementById('rubroSlide8').textContent = PROSPECTO_RUBRO;
+
+  const totalSlides = 8;
+  let current = 0;
+
+  const navDotsContainer = document.getElementById('navDots');
+  for (let i = 0; i < totalSlides; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goTo(i);
+    navDotsContainer.appendChild(dot);
+  }
+
+  function goTo(index) {
+    if (index < 0 || index >= totalSlides) return;
+    document.getElementById('s' + current).classList.remove('active');
+    current = index;
+    document.getElementById('s' + current).classList.add('active');
+    document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === current));
+    document.getElementById('progressFill').style.width = ((current + 1) / totalSlides * 100) + '%';
+    document.getElementById('prevBtn').disabled = current === 0;
+    document.getElementById('nextBtn').disabled = current === totalSlides - 1;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goTo(current - 1); }
+  });
+
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) goTo(current + (diff > 0 ? 1 : -1));
+  });
+</script>
+</body>
+</html>

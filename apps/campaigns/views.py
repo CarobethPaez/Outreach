@@ -4,13 +4,14 @@ import io
 import json
 import logging
 from functools import wraps
+from pathlib import Path
 
 import anthropic
 import requests
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -897,6 +898,28 @@ def ensayo(request):
 @_superuser_required
 def onboarding(request):
     return render(request, 'onboarding.html')
+
+
+DESCARGAR_DECK_KEY = 'outreach2026'
+DECK_VENTAS_PATH = Path(__file__).resolve().parent / 'files' / 'deck_ventas_template.html'
+
+
+def descargar_deck(request):
+    if request.GET.get('key') != DESCARGAR_DECK_KEY:
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+
+    if not DECK_VENTAS_PATH.exists():
+        raise Http404('Deck no encontrado')
+
+    fecha_hoy = timezone.now().strftime('%Y-%m-%d')
+    filename = f'StockWise_Deck_Ventas_{fecha_hoy}.html'
+
+    return FileResponse(
+        open(DECK_VENTAS_PATH, 'rb'),
+        as_attachment=True,
+        filename=filename,
+        content_type='text/html',
+    )
 
 
 @_superuser_required
