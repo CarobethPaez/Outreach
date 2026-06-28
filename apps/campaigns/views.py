@@ -900,14 +900,11 @@ def onboarding(request):
     return render(request, 'onboarding.html')
 
 
-DESCARGAR_DECK_KEY = 'outreach2026'
 DECK_VENTAS_PATH = Path(__file__).resolve().parent / 'files' / 'deck_ventas_template.html'
 
 
+@_superuser_required
 def descargar_deck(request):
-    if request.GET.get('key') != DESCARGAR_DECK_KEY:
-        return JsonResponse({'error': 'No autorizado'}, status=403)
-
     if not DECK_VENTAS_PATH.exists():
         raise Http404('Deck no encontrado')
 
